@@ -213,3 +213,83 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeBrowseF
     
 	JNF_COCOA_EXIT(env)
 }
+
+/*
+ * Class:     ca_phon_ui_nativedialogs_NativeDialogs
+ * Method:    nativeBrowseForDirectory
+ * Signature: (Ljava/awt/Window;Lca/phon/ui/nativedialogs/NativeDialogListener;Ljava/lang/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeBrowseForDirectory
+  (JNIEnv *env, jclass clazz, jobject parentWindow, jobject listener, jstring startDir, jstring title) {
+	JNF_COCOA_ENTER(env)
+	
+	// convert window ref
+	NSWindow *nsParentWindow = 
+		(parentWindow != NULL ? convertToNSWindow(env, parentWindow) : NULL);
+
+	// convert strings
+	NSString *nsStartFolder = 
+		(startDir != NULL ? JNFJavaToNSString(env, startDir) : NULL);
+	NSString *nsTitle =
+		(title != NULL ? JNFJavaToNSString(env, title) : NULL);
+		
+	jobject gListener = env->NewGlobalRef(listener);
+	
+    void (^block)(void);
+    block = ^(void){
+        NSOpenPanel *openPanel = [[NSOpenPanel openPanel] retain];
+		[openPanel setCanChooseFiles:NO];
+		[openPanel setCanChooseDirectories:YES];
+		[openPanel setAllowsMultipleSelection:NO];
+		[openPanel setCanCreateDirectories:YES];
+		
+		if(nsTitle)
+			[openPanel setTitle:nsTitle];
+			
+		if(nsStartFolder) {
+			NSURL *nsStartURL = [NSURL URLWithString:nsStartFolder];
+			[openPanel setDirectoryURL:nsStartURL];
+		}
+		
+		void (^handler)(NSInteger) = ^(NSInteger result){
+			NSURL *selectedURL = nil;
+			if (result == NSFileHandlingPanelOKButton) {
+		        for (NSURL *fileURL in [openPanel URLs]) {
+		        	selectedURL = fileURL;
+		        }
+		    }
+		    
+		    bool detach = false;
+			JNIEnv *env = NULL;
+			GetJNIEnv(&env, &detach);
+	    	jobject dlgevt = NULL;
+		    if(selectedURL != nil) {
+		    	jstring filePath = JNFNSToJavaString(env, [selectedURL path]);
+		    	dlgevt = createDialogResult(env, RESULT_OK, filePath);
+		    } else {
+		    	dlgevt = createDialogResult(env, RESULT_CANCEL, NULL);
+		    }
+		
+			sendDialogResult(env, gListener, dlgevt);
+			
+			env->DeleteGlobalRef(gListener);
+		    
+			[openPanel release];
+		};
+		
+		if(nsParentWindow) {
+			[openPanel beginSheetModalForWindow:nsParentWindow completionHandler:handler];
+		} else {
+			[openPanel beginWithCompletionHandler:handler];
+		}
+		
+    };
+    
+    if ( [NSThread isMainThread]){
+        block();
+    } else {
+        [JNFRunLoop performOnMainThreadWaiting:YES withBlock:block];
+    }
+    
+	JNF_COCOA_EXIT(env)
+}

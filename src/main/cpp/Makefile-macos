@@ -1,5 +1,6 @@
 #
 CC=clang++
+LD=clang++
 
 CFLAGS=-g -c -mmacosx-version-min=10.6 -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
 	-fPIC -I/System/Library/Frameworks/JavaVM.framework/Versions/A/Headers -I../../../target/generated-sources/cpp/include \
@@ -22,7 +23,7 @@ LIBPREFIX=lib
 LIBSUFFIX=
 LIBEXTENSION=jnilib
 LIBSHORTNAME=nativedialogs
-LIBNAME=$(LIBPREFIX)$(LIBSHORTNAME)$(LIBSUFFIX).$(LIBEXTENSION)
+LIBNAME=$(BINDIR)/$(LIBPREFIX)$(LIBSHORTNAME)$(LIBSUFFIX).$(LIBEXTENSION)
 
 INSTALL_PATH=../../../target/classes/META-INF/lib/macos
 
@@ -30,7 +31,7 @@ INSTALL_PATH=../../../target/classes/META-INF/lib/macos
 all:	$(BINDIR) $(LIB_SOURCES) $(OBJC_SOURCES) $(LIBNAME)	
 
 $(LIBNAME):	$(LIB_OBJECTS) $(OBJC_OBJECTS)
-	$(CC) $(LDFLAGS) $(LIB_OBJECTS) $(OBJC_OBJECTS) -o $@
+	$(LD) $(LDFLAGS) $(LIB_OBJECTS) $(OBJC_OBJECTS) -o $@
 	
 $(BINDIR):
 	mkdir -p $(BINDIR)
