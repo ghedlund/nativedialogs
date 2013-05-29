@@ -1,0 +1,29 @@
+/**
+This file is part of jsendpraat.
+(C) 2010 Greg J. Hedlund <ghedlund@mun.ca> 
+
+    vlc4j is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    vlc4j is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with vlc4j.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#ifndef JNILOAD_H
+#define JNILOAD_H
+
+// include correct jni.h file
+#include <jni.h>
+
+// determines if the current thread is already attached
+// to the VM and tells if we need to detach later
+jint GetJNIEnv(JNIEnv **, bool*);
+
+#endif
