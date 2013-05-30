@@ -66,13 +66,16 @@ public class NativeDialogsTest extends JFrame {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				final FileFilter[] filters = { FileFilter.xmlFilter };
-				NativeDialogs.browseForFile(NativeDialogsTest.this, new NativeDialogListener() {
+				
+				final NativeDialogListener listener = new NativeDialogListener() {
 					
 					@Override
 					public void nativeDialogEvent(NativeDialogEvent event) {
-						System.out.println(event.getDialogData().toString());
+						System.out.println(event.getDialogResult());
 					}
-				}, null, null, filters, "Hello World");
+				};
+				NativeDialogs.showYesNoCancelDialog(NativeDialogsTest.this, listener, null, "Hello", "World");
+//				NativeDialogs.showSaveFileDialog(NativeDialogsTest.this, , "file:///Users/ghedlund/Desktop", "hello.xml", "xml", null, "Save xml file");
 			}
 		};
 		browseAct.putValue(Action.NAME, "Browse for file...");
