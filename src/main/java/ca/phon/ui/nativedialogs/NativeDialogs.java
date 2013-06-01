@@ -23,13 +23,15 @@ import java.awt.Font;
 import java.awt.Window;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.JColorChooser;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
-import javax.swing.JOptionPane;
+import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 
 import ca.phon.ui.dialogs.JFontDialog;
@@ -62,42 +64,17 @@ public class NativeDialogs {
 	/** 
 	 * Method for displaying the native open file dialog.
 	 * 
-	 * @param parentWindow unsed in Win32 but essential for Cocoa
-	 * @param listener the listener to call when an event occurs
-	 * @param startDir the starting directory
-	 * @param defaultExt the default extension
-	 * @param filters the array of filters.
-	 * @param title the title of the window
+	 * @param properties
 	 */
-	private native static void nativeBrowseForFile(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String startDir,
-			String defaultExt,
-			FileFilter[] filters,
-			String title);
+	private native static void nativeShowOpenDialog(OpenDialogProperties properties);
 	
 	/** 
 	 * Method for displaying the swing open file dialog.
 	 * 
-	 * @param parentWindow unsed in Win32 but essential for Cocoa
-	 * @param listener the listener to call when an event occurs
-	 * @param startDir the starting directory
-	 * @param defaultExt the default extension
-	 * @param filters the array of filters.
-	 * @param title the title of the window
+	 * @param properties
 	 */
-	private static void swingBrowseForFile(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String startDir,
-			String defaultExt,
-			FileFilter[] filters,
-			String title) {
-		
-		final Runnable task = new BrowseForFileTask(
-				parentWindow, listener, startDir, defaultExt,
-				filters, title);
+	private static void swingShowOpenDialog(OpenDialogProperties properties) {
+		final Runnable task = new ShowOpenDialogTask(properties);
 		
 		if(SwingUtilities.isEventDispatchThread()) {
 			// don't block awt thread
@@ -107,51 +84,105 @@ public class NativeDialogs {
 		}
 	}
 	
-	private static class BrowseForFileTask implements Runnable {
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private String startDir;
-		private String defaultExt;
-		private FileFilter[] filters;
-		private String title;
+	private static class ShowOpenDialogTask implements Runnable {
+		private OpenDialogProperties properties;
 		
-		public BrowseForFileTask(Window parentWindow,
-				NativeDialogListener listener,
-				String startDir,
-				String defaultExt,
-				FileFilter[] filters,
-				String title) {
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.startDir = startDir;
-			this.defaultExt = defaultExt;
-			this.filters = filters;
-			this.title = title;
+		public ShowOpenDialogTask(OpenDialogProperties props) {
+			this.properties = props;
 		}
 		
 		@Override
 		public void run() {
 			JFileChooser chooser = new JFileChooser();
 			
-			if(startDir != null)
-				chooser.setCurrentDirectory(new File(startDir));
-			chooser.setDialogTitle(title);
-			chooser.setMultiSelectionEnabled(false);
+			if(properties.getInitialFolder() != null)
+				chooser.setCurrentDirectory(new File(properties.getInitialFolder()));
 			
-			if(filters != null && filters.length > 0)
-				chooser.setFileFilter(filters[0]);
+			if(properties.getTitle() != null)
+				chooser.setDialogTitle(properties.getTitle());
+			
+			if(properties.getFileFilter() != null)
+				chooser.setFileFilter(properties.getFileFilter());
+			
+			if(properties.getInitialFile() != null) {
+				File selectedFile = new File(properties.getInitialFolder(), properties.getInitialFile());
+				chooser.setSelectedFile(selectedFile);
+			}
+			
+			if(properties.getPrompt() != null)
+				chooser.setApproveButtonText(properties.getPrompt());
+			
+			chooser.setFileHidingEnabled(!properties.isShowHidden());
+			
+			if(properties.getMessage() != null) {
+				final JLabel msgLbl = new JLabel(properties.getMessage());
+				chooser.setAccessory(msgLbl);
+			}
+			
+			if(properties.isCanChooseFiles() && properties.isCanChooseDirectories()) {
+				chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+			} else if(properties.isCanChooseFiles()) {
+				chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+			} else if(properties.isCanChooseDirectories()) {
+				chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+			}
+			chooser.setMultiSelectionEnabled(properties.isAllowMultipleSelection());
 			
 			NativeDialogEvent evt = null;
-			int retVal = chooser.showOpenDialog(parentWindow);
+			int retVal = chooser.showOpenDialog(properties.getParentWindow());
 			if(retVal == JFileChooser.APPROVE_OPTION) {
-				// create the dialog event
-				evt = new NativeDialogEvent(NativeDialogEvent.OK_OPTION, chooser.getSelectedFile());
+				Object evtData = null;
+				
+				if(properties.isAllowMultipleSelection()) {
+					evtData = chooser.getSelectedFiles();
+				} else {
+					evtData = chooser.getSelectedFile();
+				}
+				
+				evt = new NativeDialogEvent(NativeDialogEvent.OK_OPTION, evtData);
 			} else {
 				evt = new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null);
 			}
 			
-			listener.nativeDialogEvent(evt);
+			properties.getListener().nativeDialogEvent(evt);
 		}
+	}
+	
+	/**
+	 * Show open dialog
+	 * 
+	 * @param properties
+	 * 
+	 * @return the list of selected files/folders if properties.isRunAsync()
+	 *  is <code>false</code>, <code>null</code> otherwise
+	 */
+	@SuppressWarnings("unchecked")
+	public static List<String> showOpenDialog(OpenDialogProperties properties) {
+		List<String> retVal = null;
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = new MessageWaitListener();
+			properties.setListener(mwl);
+		}
+		if(libraryFound && !properties.isForceUseSwing()) {
+			nativeShowOpenDialog(properties);
+		} else {
+			swingShowOpenDialog(properties);
+		}
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = (MessageWaitListener)properties.getListener();
+			mwl.waitLoop();
+			
+			final NativeDialogEvent evt = mwl.getEvent();
+			
+			if(evt.getDialogResult() == NativeDialogEvent.OK_OPTION) {
+				if(properties.isAllowMultipleSelection()) {
+					retVal = (List<String>)evt.getDialogData();
+				} else {
+					retVal = Arrays.asList((String)evt.getDialogData());
+				}
+			}
+		}
+		return retVal;
 	}
 	
 	/** 
@@ -163,6 +194,8 @@ public class NativeDialogs {
 	 * @param defaultExt the default extension
 	 * @param filters the array of filters.
 	 * @param title the title of the window
+	 * 
+	 * @deprecated
 	 */
 	public static void browseForFile(
 			Window parentWindow,
@@ -171,19 +204,19 @@ public class NativeDialogs {
 			String defaultExt,
 			FileFilter[] filters,
 			String title) {
-//		if(startDir == null) {
-//			startDir = PhonUtilities.getPhonWorkspace().getAbsolutePath();
-//		}
-		if(OSInfo.isMacOs() && libraryFound) {
-			nativeBrowseForFile(
-					parentWindow, listener, 
-					startDir,
-					defaultExt, filters, title);
-		} else {
-			swingBrowseForFile(
-					parentWindow, listener, startDir,
-					defaultExt, filters, title);
-		}
+		final OpenDialogProperties props = new OpenDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setInitialFolder(startDir);
+		props.setListener(listener);
+		final FileFilter filter = new FileFilter(filters);
+		if(defaultExt != null)
+			filter.setDefaultExtension(defaultExt);
+		props.setTitle(title);
+		props.setCanChooseDirectories(false);
+		props.setCanChooseFiles(true);
+		props.setAllowMultipleSelection(false);
+		
+		showOpenDialog(props);
 	}
 	
 	/**
@@ -193,269 +226,176 @@ public class NativeDialogs {
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting Directory
 	 * @param title the title of the window
-	 */
-	private native static void nativeBrowseForDirectory(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String startDir,
-			String title);
-	
-	private static void swingBrowseForDirectory(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String startDir,
-			String title) {
-		final Runnable task = new BrowseForDirectoryTask(
-				parentWindow, listener,
-				startDir, title);
-		
-		if(SwingUtilities.isEventDispatchThread()) {
-			// don't block awt thread
-			task.run();
-		} else {
-			SwingUtilities.invokeLater(task);
-		}
-	}
-	
-	private static class BrowseForDirectoryTask implements Runnable {
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private String startDir;
-		private String title;
-		
-		public BrowseForDirectoryTask(
-				Window parentWindow,
-				NativeDialogListener listener,
-				String startDir,
-				String title) {
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.startDir = startDir;
-			this.title = title;
-		}
-		
-		@Override
-		public void run() {
-			JFileChooser chooser = new JFileChooser();
-			
-			if(startDir != null)
-				chooser.setCurrentDirectory(new File(startDir));
-			
-			chooser.setDialogTitle(title);
-			chooser.setMultiSelectionEnabled(false);
-			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-			
-			NativeDialogEvent evt = null;
-			int retVal = chooser.showOpenDialog(parentWindow);
-			if(retVal == JFileChooser.APPROVE_OPTION) {
-				// create the dialog event
-				evt = new NativeDialogEvent(NativeDialogEvent.OK_OPTION, chooser.getSelectedFile());
-			} else {
-				evt = new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null);
-			}
-			
-			listener.nativeDialogEvent(evt);
-		}
-	}
-	
-	/**
-	 * Method for displaying the native open dir dialog.
 	 * 
-	 * @param parentWindows unused for Win32 but essential for Cocoa
-	 * @param listener the listener to call when an event occurs
-	 * @param startDir the starting Directory
-	 * @param title the title of the window
+	 * @deprecated
 	 */
 	public static void browseForDirectory(
 			Window parentWindow,
 			NativeDialogListener listener,
 			String startDir,
 			String title) {
-//		if(startDir == null) {
-//			startDir = PhonUtilities.getPhonWorkspace().getAbsolutePath();
+		final OpenDialogProperties props = new OpenDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setListener(listener);
+		props.setInitialFolder(startDir);
+		props.setTitle(title);
+		props.setCanChooseFiles(false);
+		props.setCanChooseDirectories(true);
+		props.setAllowMultipleSelection(false);
+		
+		showOpenDialog(props);
+	}
+	
+//	/**
+//	 * Task to browse for a phon project.
+//	 * 
+//	 */
+//	private static class BrowseForProjectTask implements Runnable {
+//
+//		private Window parentWindow;
+//		private NativeDialogListener listener;
+//		private String startDir;
+//		private String title;
+//		
+//		public BrowseForProjectTask(
+//				Window parentWindow,
+//				NativeDialogListener listener,
+//				String startDir,
+//				String title) {
+//			this.parentWindow = parentWindow;
+//			this.listener = listener;
+//			this.startDir = startDir;
+//			this.title = title;
 //		}
-		
-		if(libraryFound) {
-			nativeBrowseForDirectory(
-					parentWindow, listener,
-					startDir, title);
-		} else {
-			swingBrowseForDirectory(
-					parentWindow, listener,
-					startDir, title);
-		}
-	}
-	
-	/**
-	 * Task to browse for a phon project.
-	 * 
-	 */
-	private static class BrowseForProjectTask implements Runnable {
-
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private String startDir;
-		private String title;
-		
-		public BrowseForProjectTask(
-				Window parentWindow,
-				NativeDialogListener listener,
-				String startDir,
-				String title) {
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.startDir = startDir;
-			this.title = title;
-		}
-		
-		@Override
-		public void run() {
-			JFileChooser chooser = new JFileChooser();
-			
-			if(startDir != null)
-				chooser.setCurrentDirectory(new File(startDir));
-			
-			chooser.setDialogTitle(title);
-			chooser.setMultiSelectionEnabled(false);
-			chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
-			
-				javax.swing.filechooser.FileFilter projectFilter = new javax.swing.filechooser.FileFilter() {
-	
-					@Override
-					public boolean accept(File file) {
-						boolean isPhonProject = false;
-						
-						if(file.isDirectory()) {
-							if(!OSInfo.isMacOs()) {
-								// accept all directories on non-mac systems
-								isPhonProject = true;
-							} else {
-								File projectXml = new File(file, "project.xml");
-								if(!projectXml.exists())
-									isPhonProject = false;
-								else
-									isPhonProject = true;
-							}
-						} else {
-							if(file.getName().endsWith(".phon")) {
-								isPhonProject = true;
-							}
-						}
-						
-						return isPhonProject;
-					}
-	
-					@Override
-					public String getDescription() {
-						return "Phon Projects";
-					}
-				};
-				chooser.setFileFilter(projectFilter);
-			
-			
-			NativeDialogEvent evt = null;
-			int retVal = chooser.showOpenDialog(parentWindow);
-			if(retVal == JFileChooser.APPROVE_OPTION) {
-				// create the dialog event
-				evt = new NativeDialogEvent(NativeDialogEvent.OK_OPTION, chooser.getSelectedFile());
-			} else {
-				evt = new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null);
-			}
-			
-			listener.nativeDialogEvent(evt);
-		}
-		
-	}
-	
-	/**
-	 * Show a dialog for selecting phon project.  Phon project are
-	 * either a directory with a project.xml file inside, or a file
-	 * with a .phon extension.
-	 * 
-	 * @param parentWindow
-	 * @param listener
-	 * @param startDir
-	 * @param title
-	 */
-	public static void browseForProject(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String startDir,
-			String title)
-	{
-//		if(startDir == null) {
-//			startDir = PhonUtilities.getPhonWorkspace().getAbsolutePath();
+//		
+//		@Override
+//		public void run() {
+//			JFileChooser chooser = new JFileChooser();
+//			
+//			if(startDir != null)
+//				chooser.setCurrentDirectory(new File(startDir));
+//			
+//			chooser.setDialogTitle(title);
+//			chooser.setMultiSelectionEnabled(false);
+//			chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+//			
+//				javax.swing.filechooser.FileFilter projectFilter = new javax.swing.filechooser.FileFilter() {
+//	
+//					@Override
+//					public boolean accept(File file) {
+//						boolean isPhonProject = false;
+//						
+//						if(file.isDirectory()) {
+//							if(!OSInfo.isMacOs()) {
+//								// accept all directories on non-mac systems
+//								isPhonProject = true;
+//							} else {
+//								File projectXml = new File(file, "project.xml");
+//								if(!projectXml.exists())
+//									isPhonProject = false;
+//								else
+//									isPhonProject = true;
+//							}
+//						} else {
+//							if(file.getName().endsWith(".phon")) {
+//								isPhonProject = true;
+//							}
+//						}
+//						
+//						return isPhonProject;
+//					}
+//	
+//					@Override
+//					public String getDescription() {
+//						return "Phon Projects";
+//					}
+//				};
+//				chooser.setFileFilter(projectFilter);
+//			
+//			
+//			NativeDialogEvent evt = null;
+//			int retVal = chooser.showOpenDialog(parentWindow);
+//			if(retVal == JFileChooser.APPROVE_OPTION) {
+//				// create the dialog event
+//				evt = new NativeDialogEvent(NativeDialogEvent.OK_OPTION, chooser.getSelectedFile());
+//			} else {
+//				evt = new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null);
+//			}
+//			
+//			listener.nativeDialogEvent(evt);
 //		}
-		
-		// no native version yet
-		swingBrowseForProject(parentWindow, listener, startDir, title);
-	}
-	
-	private static void swingBrowseForProject(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String startDir,
-			String title)
-	{
-		final Runnable task = new BrowseForProjectTask(parentWindow, listener, 
-				startDir, title);
-		
-		if(SwingUtilities.isEventDispatchThread()) 
-			task.run();
-		else
-			SwingUtilities.invokeLater(task);
-	}
-	
-	public static String browseForProjectBlocking(
-			Window parentWindow,
-			String startDir,
-			String title)
-	{
-	
-//		if(startDir == null) {
-//			startDir = PhonUtilities.getPhonWorkspace().getAbsolutePath();
-//		}
-		
-		MessageWaitListener mwl = new MessageWaitListener();
-		browseForProject(parentWindow, mwl, startDir, title);
-		mwl.waitLoop();
-		
-		if(mwl.getEvent().getDialogResult() == NativeDialogEvent.OK_OPTION)
-			return mwl.getEvent().getDialogData().toString();
-		else
-			return null;
-	}
+//		
+//	}
+//	
+//	/**
+//	 * Show a dialog for selecting phon project.  Phon project are
+//	 * either a directory with a project.xml file inside, or a file
+//	 * with a .phon extension.
+//	 * 
+//	 * @param parentWindow
+//	 * @param listener
+//	 * @param startDir
+//	 * @param title
+//	 */
+//	public static void browseForProject(
+//			Window parentWindow,
+//			NativeDialogListener listener,
+//			String startDir,
+//			String title)
+//	{
+////		if(startDir == null) {
+////			startDir = PhonUtilities.getPhonWorkspace().getAbsolutePath();
+////		}
+//		
+//		// no native version yet
+//		swingBrowseForProject(parentWindow, listener, startDir, title);
+//	}
+//	
+//	private static void swingBrowseForProject(
+//			Window parentWindow,
+//			NativeDialogListener listener,
+//			String startDir,
+//			String title)
+//	{
+//		final Runnable task = new BrowseForProjectTask(parentWindow, listener, 
+//				startDir, title);
+//		
+//		if(SwingUtilities.isEventDispatchThread()) 
+//			task.run();
+//		else
+//			SwingUtilities.invokeLater(task);
+//	}
+//	
+//	public static String browseForProjectBlocking(
+//			Window parentWindow,
+//			String startDir,
+//			String title)
+//	{
+//	
+////		if(startDir == null) {
+////			startDir = PhonUtilities.getPhonWorkspace().getAbsolutePath();
+////		}
+//		
+//		MessageWaitListener mwl = new MessageWaitListener();
+//		browseForProject(parentWindow, mwl, startDir, title);
+//		mwl.waitLoop();
+//		
+//		if(mwl.getEvent().getDialogResult() == NativeDialogEvent.OK_OPTION)
+//			return mwl.getEvent().getDialogData().toString();
+//		else
+//			return null;
+//	}
 	
 	/**
 	 * Method for displaying a save file dialog.
 	 * 
-	 * @param parentWindow unused for Win32 but essential for Cocoa
-	 * @param listener the listener to call when an event occurs
-	 * @param startDir the starting directory
-	 * @param title the title of the window
-	 * @param defaultExt the default file extension
+	 * @param properties
 	 */
-	private native static void nativeShowSaveFileDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String startDir,
-			String fileName,
-			String defaultExt,
-			FileFilter[] filters,
-			String title);
+	private native static void nativeShowSaveDialog(SaveDialogProperties properties);
 	
-	private static void swingShowSaveFileDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String startDir,
-			String fileName,
-			String defaultExt,
-			FileFilter[] filters,
-			String title) {
+	private static void swingShowSaveDialog(SaveDialogProperties properties) {
 		final Runnable task = 
-				new ShowSaveFileTask(
-						parentWindow, listener,
-						startDir, fileName, defaultExt, filters, title);
+				new ShowSaveFileTask(properties);
 		
 		if(SwingUtilities.isEventDispatchThread()) {
 			// don't block awt thread
@@ -466,72 +406,107 @@ public class NativeDialogs {
 	}
 	
 	private static class ShowSaveFileTask implements Runnable {
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private String startDir;
-		private String fileName;
-		private String defaultExt;
-		private FileFilter[] filters;
-		private String title;
+		private final SaveDialogProperties properties;
 		
-		public ShowSaveFileTask(Window parentWindow,
-				NativeDialogListener listener,
-				String startDir,
-				String fileName,
-				String defaultExt,
-				FileFilter[] filters,
-				String title) {
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.startDir = startDir;
-			this.defaultExt = defaultExt;
-			this.filters = filters;
-			this.title = title;
+		public ShowSaveFileTask(SaveDialogProperties properties) {
+			this.properties = properties;
 		}
 		
 		@Override
 		public void run() {
 			JFileChooser chooser = new JFileChooser();
 			
-			if(startDir != null)
-				chooser.setCurrentDirectory(new File(startDir));
+			if(properties.getInitialFolder() != null)
+				chooser.setCurrentDirectory(new File(properties.getInitialFolder()));
 			
-			chooser.setDialogTitle(title);
-			chooser.setMultiSelectionEnabled(false);
+			if(properties.getTitle() != null)
+				chooser.setDialogTitle(properties.getTitle());
 			
-			if(filters.length > 0)
-				chooser.setFileFilter(filters[0]);
+			if(properties.getFileFilter() != null)
+				chooser.setFileFilter(properties.getFileFilter());
 			
-			if(fileName != null) {
-				File selectedFile = new File(startDir, fileName);
+			if(properties.getInitialFile() != null) {
+				File selectedFile = new File(properties.getInitialFolder(), properties.getInitialFile());
 				chooser.setSelectedFile(selectedFile);
 			}
 			
+			if(properties.getPrompt() != null)
+				chooser.setApproveButtonText(properties.getPrompt());
+			
+			chooser.setFileHidingEnabled(!properties.isShowHidden());
+			
+			if(properties.getMessage() != null) {
+				final JLabel msgLbl = new JLabel(properties.getMessage());
+				chooser.setAccessory(msgLbl);
+			}
+			
 			NativeDialogEvent evt = null;
-			int retVal = chooser.showSaveDialog(parentWindow);
+			int retVal = chooser.showSaveDialog(properties.getParentWindow());
 			if(retVal == JFileChooser.APPROVE_OPTION) {
 				// create the dialog event
 				File selectedFile = chooser.getSelectedFile();
-				if(!selectedFile.getName().endsWith(defaultExt)) {
-					selectedFile = new File(selectedFile.getAbsolutePath()
-							 + defaultExt);
+	
+				if(properties.getFileFilter() != null) {
+					boolean hasValidExt = false;
+					for(String validExt:properties.getFileFilter().getAllExtensions()) {
+						if(selectedFile.getName().endsWith("." + validExt)) {
+							hasValidExt = true;
+							break;
+						}
+					}
+					if(!hasValidExt) {
+						selectedFile = new File(selectedFile.getAbsolutePath()
+								 + "." + properties.getFileFilter().getDefaultExtension());
+					}
 				}
 				
 				int rVal = NativeDialogEvent.OK_OPTION;
 				if(selectedFile.exists()) {
-					rVal = showYesNoDialogBlocking(parentWindow, "", "File exists", "Overwrite file '" + selectedFile.getAbsolutePath() + "'?");
+					rVal = showYesNoDialogBlocking(properties.getParentWindow(), "", "File exists", "Overwrite file '" + selectedFile.getAbsolutePath() + "'?");
 					rVal = (rVal == NativeDialogEvent.YES_OPTION ? NativeDialogEvent.OK_OPTION : NativeDialogEvent.CANCEL_OPTION);
 				}
 				
-				evt = new NativeDialogEvent(rVal, selectedFile);
+				evt = new NativeDialogEvent(rVal, selectedFile.getAbsolutePath());
 			} else {
 				evt = new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null);
 			}
 			
-			listener.nativeDialogEvent(evt);
+			properties.getListener().nativeDialogEvent(evt);
 		}
 	}
 	
+	/**
+	 * Method for displaying a save file dialog.
+	 * 
+	 * @param properties
+	 * 
+	 * @return the save file path if properties.isRunAsync() 
+	 *  is <code>false</code>, <code>null</code> otherwise
+	 */
+	public static String showSaveDialog(SaveDialogProperties properties) {
+		String retVal = null;
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = new MessageWaitListener();
+			properties.setListener(mwl);
+		}
+		if(libraryFound && !properties.isForceUseSwing()) {
+			nativeShowSaveDialog(properties);
+		} else {
+			swingShowSaveDialog(properties);
+		}
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = (MessageWaitListener)properties.getListener();
+			mwl.waitLoop();
+			
+			final NativeDialogEvent evt = mwl.getEvent();
+			
+			if(evt.getDialogResult() == NativeDialogEvent.OK_OPTION) {
+				retVal = (String)evt.getDialogData();
+			}
+		}
+		return retVal;
+	}
+
 	/**
 	 * Method for displaying a save file dialog.
 	 * 
@@ -540,6 +515,8 @@ public class NativeDialogs {
 	 * @param startDir the starting directory
 	 * @param title the title of the window
 	 * @param defaultExt the default file extension
+	 * 
+	 * @deprecated
 	 */
 	public static void showSaveFileDialog(
 			Window parentWindow,
@@ -559,6 +536,8 @@ public class NativeDialogs {
 	 * @param startDir the starting directory
 	 * @param title the title of the window
 	 * @param defaultExt the default file extension
+	 * 
+	 * @deprecated
 	 */
 	public static void showSaveFileDialog(
 			Window parentWindow,
@@ -568,15 +547,19 @@ public class NativeDialogs {
 			String defaultExt,
 			FileFilter[] filters,
 			String title) {
-		if(libraryFound) {
-			nativeShowSaveFileDialog(
-					parentWindow, listener,
-					startDir, fileName, defaultExt, filters, title);
-		} else {
-			swingShowSaveFileDialog(
-					parentWindow, listener,
-					startDir, fileName, defaultExt, filters, title);
-		}
+		final SaveDialogProperties props = new SaveDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setInitialFolder(startDir);
+		props.setInitialFile(fileName);
+		final FileFilter filter = new FileFilter(filters);
+		if(defaultExt != null)
+			filter.setDefaultExtension(defaultExt);
+		props.setFileFilter(filter);
+		props.setTitle(title);
+		
+		props.setListener(listener);
+		
+		showSaveDialog(props);
 	}
 	
 	/**
@@ -585,75 +568,8 @@ public class NativeDialogs {
 	 * 
 	 * @param msg1 the message text
 	 * @param msg2 the 'informative' text
-	 */
-	private native static void nativeShowYesNoCancelDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String iconFile,
-			String msg1,
-			String msg2);
-	
-	private static void swingShowYesNoCancelDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String iconFile,
-			String msg1,
-			String msg2) {
-		final Runnable task = new ShowYesNoCancelTask(
-				parentWindow, listener,
-				iconFile, msg1, msg2);
-		
-		if(SwingUtilities.isEventDispatchThread()) {
-			// don't block awt thread
-			task.run();
-		} else {
-			SwingUtilities.invokeLater(task);
-		}
-	}
-	
-	private static class ShowYesNoCancelTask implements Runnable {
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private String iconFile;
-		private String msg1;
-		private String msg2;
-		
-		public ShowYesNoCancelTask(Window parentWindow,
-				NativeDialogListener listener,
-				String iconFile,
-				String msg1,
-				String msg2) {
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.iconFile = iconFile;
-			this.msg1 = msg1;
-			this.msg2 = "<html>" + msg2 + "</html>";
-		}
-		
-		@Override
-		public void run() {
-			int retVal = JOptionPane.showConfirmDialog(parentWindow,
-					msg2, msg1, JOptionPane.YES_NO_CANCEL_OPTION);
-			
-			NativeDialogEvent evt = null;
-			if(retVal == JOptionPane.YES_OPTION) {
-				evt = new NativeDialogEvent(NativeDialogEvent.YES_OPTION, null);
-			} else if(retVal == JOptionPane.NO_OPTION) {
-				evt = new NativeDialogEvent(NativeDialogEvent.NO_OPTION, null);
-			} else {
-				evt = new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null);
-			}
-			
-			listener.nativeDialogEvent(evt);
-		}
-	}
-	
-	/**
-	 * Displays a (alert) dialog with with yes,no and cancel
-	 * buttons.
 	 * 
-	 * @param msg1 the message text
-	 * @param msg2 the 'informative' text
+	 * @deprecated
 	 */
 	public static void showYesNoCancelDialog(
 			Window parentWindow,
@@ -661,15 +577,15 @@ public class NativeDialogs {
 			String iconFile,
 			String msg1,
 			String msg2) {
-		if(libraryFound) {
-			nativeShowYesNoCancelDialog(
-					parentWindow, listener,
-					iconFile, msg1, msg2);
-		} else {
-			swingShowYesNoCancelDialog(
-					parentWindow, listener,
-					iconFile, msg1, msg2);
-		}
+		final MessageDialogProperties props = new MessageDialogProperties();
+		props.setOptions(MessageDialogProperties.yesNoCancelOptions);
+		props.setListener(listener);
+		props.setParentWindow(parentWindow);
+		props.setHeader(msg1);
+		props.setMessage(msg2);
+		props.setRunAsync(true);
+		
+		showMessageDialog(props);
 	}
 	
 	/**
@@ -677,73 +593,8 @@ public class NativeDialogs {
 	 * 
 	 * @param msg1 the message text
 	 * @param msg2 the 'informative' text
-	 */
-	private native static void nativeShowYesNoDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String iconFile,
-			String msg1,
-			String msg2);
-	
-	private static void swingShowYesNoDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String iconFile,
-			String msg1,
-			String msg2) {
-		final Runnable task = new ShowYesNoTask(
-				parentWindow, listener,
-				iconFile, msg1, msg2);
-		
-		if(SwingUtilities.isEventDispatchThread()) {
-			// don't block awt thread
-			task.run();
-		} else {
-			SwingUtilities.invokeLater(task);
-		}
-	}
-	
-	private static class ShowYesNoTask implements Runnable {
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private String iconFile;
-		private String msg1;
-		private String msg2;
-		
-		public ShowYesNoTask(
-				Window parentWindow,
-				NativeDialogListener listener,
-				String iconFile,
-				String msg1,
-				String msg2) {
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.iconFile = iconFile;
-			this.msg1 = msg1;
-			this.msg2 = msg2;
-		}
-		
-		@Override
-		public void run() {
-			int retVal = JOptionPane.showConfirmDialog(parentWindow, 
-					msg2, msg1, JOptionPane.YES_NO_OPTION);
-			
-			NativeDialogEvent evt = null;
-			if(retVal == JOptionPane.YES_OPTION) {
-				evt = new NativeDialogEvent(NativeDialogEvent.YES_OPTION, null);
-			} else {
-				evt = new NativeDialogEvent(NativeDialogEvent.NO_OPTION, null);
-			}
-			
-			listener.nativeDialogEvent(evt);
-		}
-	}
-	
-	/**
-	 * Displays a (alert) dialog with yes and no buttons.
 	 * 
-	 * @param msg1 the message text
-	 * @param msg2 the 'informative' text
+	 * @deprecated
 	 */
 	public static void showYesNoDialog(
 			Window parentWindow,
@@ -751,15 +602,15 @@ public class NativeDialogs {
 			String iconFile,
 			String msg1,
 			String msg2) {
-		if(libraryFound) {
-			nativeShowYesNoDialog(
-					parentWindow, listener,
-					iconFile, msg1, msg2);
-		} else {
-			swingShowYesNoDialog(
-					parentWindow, listener,
-					iconFile, msg1, msg2);
-		}
+		final MessageDialogProperties props = new MessageDialogProperties();
+		props.setOptions(MessageDialogProperties.yesNoOptions);
+		props.setListener(listener);
+		props.setParentWindow(parentWindow);
+		props.setHeader(msg1);
+		props.setMessage(msg2);
+		props.setRunAsync(true);
+		
+		showMessageDialog(props);
 	}
 	
 	/**
@@ -767,72 +618,8 @@ public class NativeDialogs {
 	 * 
 	 * @param msg1 the message text
 	 * @param msg2 the 'informative' text
-	 */
-	private native static void nativeShowOkCancelDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String iconFile,
-			String msg1,
-			String msg2);
-	
-	private static void swingShowOkCancelDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String iconFile,
-			String msg1,
-			String msg2) {
-		final Runnable task = new ShowOkCancelTask(
-				parentWindow, listener,
-				iconFile, msg1, msg2);
-		
-		if(SwingUtilities.isEventDispatchThread()) {
-			// don't block awt thread
-			task.run();
-		} else {
-			SwingUtilities.invokeLater(task);
-		}
-	}
-	
-	private static class ShowOkCancelTask implements Runnable {
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private String iconFile;
-		private String msg1;
-		private String msg2;
-		
-		public ShowOkCancelTask(Window parentWindow,
-				NativeDialogListener listener,
-				String iconFile,
-				String msg1,
-				String msg2) {
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.iconFile = iconFile;
-			this.msg1 = msg1;
-			this.msg2 = msg2;
-		}
-		
-		@Override
-		public void run() {
-			int retVal = JOptionPane.showConfirmDialog(parentWindow,
-					msg2, msg1, JOptionPane.OK_CANCEL_OPTION);
-			
-			NativeDialogEvent evt = null;
-			if(retVal == JOptionPane.OK_OPTION) {
-				evt = new NativeDialogEvent(NativeDialogEvent.YES_OPTION, null);
-			} else {
-				evt = new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null);
-			}
-			
-			listener.nativeDialogEvent(evt);
-		}
-	}
-	
-	/**
-	 * Displays a (alert) dialog with ok and cancel buttons.
 	 * 
-	 * @param msg1 the message text
-	 * @param msg2 the 'informative' text
+	 * @deprecated
 	 */
 	public static void showOkCancelDialog(
 			Window parentWindow,
@@ -840,39 +627,26 @@ public class NativeDialogs {
 			String iconFile,
 			String msg1,
 			String msg2) {
-		if(libraryFound) {
-			nativeShowOkCancelDialog(
-					parentWindow, listener,
-					iconFile, msg1, msg2);
-		} else {
-			swingShowOkCancelDialog(
-					parentWindow, listener,
-					iconFile, msg1, msg2);
-		}
+		final MessageDialogProperties props = new MessageDialogProperties();
+		props.setOptions(MessageDialogProperties.okCancelOptions);
+		props.setListener(listener);
+		props.setParentWindow(parentWindow);
+		props.setHeader(msg1);
+		props.setMessage(msg2);
+		props.setRunAsync(true);
+		
+		showMessageDialog(props);
 	}
 	
 	/**
 	 * Displays a message dialog with an ok button.
 	 * 
-	 * @param msg1 the message text
-	 * @param msg2 the 'informative' text
+	 * @param properties
 	 */
-	private native static void nativeShowMessageDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String iconFile,
-			String msg1,
-			String msg2);
+	private native static void nativeShowMessageDialog(MessageDialogProperties properties);
 	
-	private static void swingShowMessageDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String iconFile,
-			String msg1,
-			String msg2) {
-		final Runnable task = new ShowMessageTask(
-				parentWindow, listener,
-				iconFile, msg1, msg2);
+	private static void swingShowMessageDialog(MessageDialogProperties properties) {
+		final Runnable task = new ShowMessageTask(properties);
 		
 		if(SwingUtilities.isEventDispatchThread()) {
 			// don't block awt thread
@@ -883,38 +657,45 @@ public class NativeDialogs {
 	}
 	
 	private static class ShowMessageTask implements Runnable {
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private String iconFile;
-		private String msg1;
-		private String msg2;
 		
-		public ShowMessageTask(
-				Window parentWindow,
-				NativeDialogListener listener,
-				String iconFile,
-				String msg1,
-				String msg2) {
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.iconFile = iconFile;
-			this.msg1 = msg1;
-			this.msg2 = msg2;
+		private MessageDialogProperties properties;
+		
+		public ShowMessageTask(MessageDialogProperties props) {
+			this.properties = props;
 		}
 		
 		@Override
 		public void run() {
-				JOptionPane.showMessageDialog(parentWindow, this.msg2, this.msg1, JOptionPane.INFORMATION_MESSAGE);
-			
-			NativeDialogEvent evt = null;
-//			if(retVal == JOptionPane.OK_OPTION) {
-				evt = new NativeDialogEvent(NativeDialogEvent.OK_OPTION, null);
-//			} else {
-//				evt = new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null);
-//			}
-			
-			listener.nativeDialogEvent(evt);
 		}
+	}
+	
+	/**
+	 * Display a message dialog.
+	 * 
+	 * @param properties
+	 * 
+	 * @return index of the selected option if properties.isRunAsync() is <code>false</code>,
+	 *  <code>null</code> otherwise
+	 */
+	public static Integer showMessageDialog(MessageDialogProperties properties) {
+		Integer retVal = null;
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = new MessageWaitListener();
+			properties.setListener(mwl);
+		}
+		if(libraryFound && !properties.isForceUseSwing()) {
+			nativeShowMessageDialog(properties);
+		} else {
+			swingShowMessageDialog(properties);
+		}
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = (MessageWaitListener)properties.getListener();
+			mwl.waitLoop();
+			
+			final NativeDialogEvent evt = mwl.getEvent();
+			retVal = evt.getDialogResult();
+		}
+		return retVal;
 	}
 	
 	/**
@@ -922,6 +703,8 @@ public class NativeDialogs {
 	 * 
 	 * @param msg1 the message text
 	 * @param msg2 the 'informative' text
+	 * 
+	 * @deprecated
 	 */
 	public static void showMessageDialog(
 			Window parentWindow,
@@ -929,15 +712,15 @@ public class NativeDialogs {
 			String iconFile,
 			String msg1,
 			String msg2) {
-		if(libraryFound) {
-			nativeShowMessageDialog(
-					parentWindow, listener,
-					iconFile, msg1, msg2);
-		} else {
-			swingShowMessageDialog(
-					parentWindow, listener,
-					iconFile, msg1, msg2);
-		}
+		final MessageDialogProperties props = new MessageDialogProperties();
+		props.setOptions(MessageDialogProperties.okOptions);
+		props.setListener(listener);
+		props.setParentWindow(parentWindow);
+		props.setHeader(msg1);
+		props.setMessage(msg2);
+		props.setRunAsync(true);
+		
+		showMessageDialog(props);
 	}
 	
 	/**
@@ -1162,6 +945,8 @@ public class NativeDialogs {
 	 * @param defaultExt the default extension
 	 * @param filters the array of filters.
 	 * @param title the title of the window
+	 * 
+	 * @deprecated
 	 */
 	public static String browseForFileBlocking(
 			Window parentWindow,
@@ -1170,16 +955,22 @@ public class NativeDialogs {
 			FileFilter[] filters,
 			String title)
 	{
-//		if(startDir == null) {
-//			startDir = PhonUtilities.getPhonWorkspace().getAbsolutePath();
-//		}
+		final OpenDialogProperties props = new OpenDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setRunAsync(false);
+		props.setInitialFolder(startDir);
+		final FileFilter filter = new FileFilter(filters);
+		if(defaultExt != null)
+			filter.setDefaultExtension(defaultExt);
+		props.setTitle(title);
+		props.setCanChooseDirectories(false);
+		props.setCanChooseFiles(true);
+		props.setAllowMultipleSelection(false);
 		
-		MessageWaitListener mwl = new MessageWaitListener();
-		browseForFile(parentWindow, mwl, startDir, defaultExt, filters, title);
-		mwl.waitLoop();
+		List<String> retVal = showOpenDialog(props);
 		
-		if(mwl.getEvent().getDialogResult() == NativeDialogEvent.OK_OPTION)
-			return mwl.getEvent().getDialogData().toString();
+		if(retVal != null && retVal.size() > 0)
+			return retVal.get(0);
 		else
 			return null;
 	}
@@ -1191,22 +982,27 @@ public class NativeDialogs {
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting Directory
 	 * @param title the title of the window
+	 * 
+	 * @deprecated
 	 */
 	public static String browseForDirectoryBlocking(
 			Window parentWindow,
 			String startDir,
 			String title)
 	{
-//		if(startDir == null) {
-//			startDir = PhonUtilities.getPhonWorkspace().getAbsolutePath();
-//		}
+		final OpenDialogProperties props = new OpenDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setRunAsync(false);
+		props.setInitialFolder(startDir);
+		props.setTitle(title);
+		props.setCanChooseDirectories(true);
+		props.setCanChooseFiles(false);
+		props.setAllowMultipleSelection(false);
 		
-		MessageWaitListener mwl = new MessageWaitListener();
-		browseForDirectory(parentWindow, mwl, startDir, title);
-		mwl.waitLoop();
+		List<String> retVal = showOpenDialog(props);
 		
-		if(mwl.getEvent().getDialogResult() == NativeDialogEvent.OK_OPTION)
-			return mwl.getEvent().getDialogData().toString();
+		if(retVal != null && retVal.size() > 0)
+			return retVal.get(0);
 		else
 			return null;
 	}
@@ -1219,6 +1015,8 @@ public class NativeDialogs {
 	 * @param startDir the starting directory
 	 * @param title the title of the window
 	 * @param defaultExt the default file extension
+	 * 
+	 * @deprecated
 	 */
 	public static String showSaveFileDialogBlocking(
 			Window parentWindow,
@@ -1238,6 +1036,8 @@ public class NativeDialogs {
 	 * @param startDir the starting directory
 	 * @param title the title of the window
 	 * @param defaultExt the default file extension
+	 * 
+	 * @deprecated
 	 */
 	public static String showSaveFileDialogBlocking(
 			Window parentWindow,
@@ -1247,16 +1047,17 @@ public class NativeDialogs {
 			FileFilter[] filters,
 			String title)
 	{
-		MessageWaitListener mwl = new MessageWaitListener();
-		showSaveFileDialog(parentWindow, mwl, startDir, fileName, defaultExt, filters, title);
-		mwl.waitLoop();
+		final SaveDialogProperties props = new SaveDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setRunAsync(false);
+		props.setInitialFolder(startDir);
+		props.setInitialFile(fileName);
+		final FileFilter filter = new FileFilter(filters);
+		if(defaultExt != null)
+			filter.setDefaultExtension(defaultExt);
+		props.setTitle(title);
 		
-		if(mwl.getEvent().getDialogResult() == NativeDialogEvent.OK_OPTION) {
-			final String saveTo = mwl.getEvent().getDialogData().toString();
-			return saveTo;
-		} else {
-			return null;
-		}
+		return showSaveDialog(props);
 	}
 	
 	/**
@@ -1265,6 +1066,8 @@ public class NativeDialogs {
 	 * 
 	 * @param msg1 the message text
 	 * @param msg2 the 'informative' text
+	 * 
+	 * @deprecated
 	 */
 	public static int showYesNoCancelDialogBlocking(
 			Window parentWindow,
@@ -1272,11 +1075,14 @@ public class NativeDialogs {
 			String msg1,
 			String msg2)
 	{
-		MessageWaitListener mwl = new MessageWaitListener();
-		showYesNoCancelDialog(parentWindow, mwl, iconFile, msg1, msg2);
-		mwl.waitLoop();
+		final MessageDialogProperties props = new MessageDialogProperties();
+		props.setOptions(MessageDialogProperties.yesNoCancelOptions);
+		props.setParentWindow(parentWindow);
+		props.setHeader(msg1);
+		props.setMessage(msg2);
+		props.setRunAsync(false);
 		
-		return mwl.getEvent().getDialogResult();
+		return showMessageDialog(props);
 	}
 	
 	/**
@@ -1284,6 +1090,8 @@ public class NativeDialogs {
 	 * 
 	 * @param msg1 the message text
 	 * @param msg2 the 'informative' text
+	 * 
+	 * @deprecated
 	 */
 	public static int showYesNoDialogBlocking(
 			Window parentWindow,
@@ -1291,11 +1099,14 @@ public class NativeDialogs {
 			String msg1,
 			String msg2)
 	{
-		MessageWaitListener mwl = new MessageWaitListener();
-		showYesNoDialog(parentWindow, mwl, iconFile, msg1, msg2);
-		mwl.waitLoop();
+		final MessageDialogProperties props = new MessageDialogProperties();
+		props.setOptions(MessageDialogProperties.yesNoOptions);
+		props.setParentWindow(parentWindow);
+		props.setHeader(msg1);
+		props.setMessage(msg2);
+		props.setRunAsync(false);
 		
-		return mwl.getEvent().getDialogResult();
+		return showMessageDialog(props);
 	}
 	
 	/**
@@ -1303,6 +1114,8 @@ public class NativeDialogs {
 	 * 
 	 * @param msg1 the message text
 	 * @param msg2 the 'informative' text
+	 * 
+	 * @deprecated
 	 */
 	public static int showOkCancelDialogBlocking(
 			Window parentWindow,
@@ -1310,11 +1123,14 @@ public class NativeDialogs {
 			String msg1,
 			String msg2)
 	{
-		MessageWaitListener mwl = new MessageWaitListener();
-		showOkCancelDialog(parentWindow, mwl, iconFile, msg1, msg2);
-		mwl.waitLoop();
+		final MessageDialogProperties props = new MessageDialogProperties();
+		props.setOptions(MessageDialogProperties.okCancelOptions);
+		props.setParentWindow(parentWindow);
+		props.setHeader(msg1);
+		props.setMessage(msg2);
+		props.setRunAsync(false);
 		
-		return mwl.getEvent().getDialogResult();
+		return showMessageDialog(props);
 	}
 	
 	/**
@@ -1322,6 +1138,8 @@ public class NativeDialogs {
 	 * 
 	 * @param msg1 the message text
 	 * @param msg2 the 'informative' text
+	 * 
+	 * @deprecated
 	 */
 	public static void showMessageDialogBlocking(
 			Window parentWindow,
@@ -1329,9 +1147,14 @@ public class NativeDialogs {
 			String msg1,
 			String msg2)
 	{
-		MessageWaitListener mwl = new MessageWaitListener();
-		showMessageDialog(parentWindow, mwl, iconFile, msg1, msg2);
-		mwl.waitLoop();
+		final MessageDialogProperties props = new MessageDialogProperties();
+		props.setOptions(MessageDialogProperties.okOptions);
+		props.setParentWindow(parentWindow);
+		props.setHeader(msg1);
+		props.setMessage(msg2);
+		props.setRunAsync(false);
+		
+		showMessageDialog(props);
 	}
 	
 	public static Font showFontSelectionDialogBlocking(
@@ -1392,7 +1215,4 @@ public class NativeDialogs {
 		}
 	}
 	
-	public static void main(String[] args) {
-		NativeDialogs.showFontSelectionDialogBlocking(null, null, 0, 0);
-	}
 }

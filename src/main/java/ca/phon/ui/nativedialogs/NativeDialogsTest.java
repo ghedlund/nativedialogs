@@ -23,8 +23,10 @@ import java.awt.event.ActionEvent;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 /**
@@ -65,17 +67,52 @@ public class NativeDialogsTest extends JFrame {
 			
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				final FileFilter[] filters = { FileFilter.xmlFilter };
+				final FileFilter[] filters = { FileFilter.xmlFilter, FileFilter.jsFilter };
 				
 				final NativeDialogListener listener = new NativeDialogListener() {
 					
 					@Override
 					public void nativeDialogEvent(NativeDialogEvent event) {
 						System.out.println(event.getDialogResult());
+						if(event.getDialogData() != null) {
+							System.out.println("L:" + event.getDialogData());
+						}
 					}
 				};
-				NativeDialogs.showYesNoCancelDialog(NativeDialogsTest.this, listener, null, "Hello", "World");
-//				NativeDialogs.showSaveFileDialog(NativeDialogsTest.this, , "file:///Users/ghedlund/Desktop", "hello.xml", "xml", null, "Save xml file");
+				
+				final SaveDialogProperties props = new SaveDialogProperties();
+				props.setRunAsync(false);
+				props.setParentWindow(NativeDialogsTest.this);
+				props.setListener(listener);
+				props.setInitialFolder("/Users/ghedlund/Desktop");
+				props.setInitialFile("hello");
+				props.setFileFilter(new FileFilter(filters));
+				props.setTitle("Save as...");
+				props.setPrompt("Save Query");
+				props.setCanCreateDirectories(true);
+				props.setShowHidden(false);
+				props.setMessage("Hello world");
+				props.setForceUseSwing(true);
+				
+//				props.setHideExtension(true);
+//				props.setCanSelectHideExtension(true);
+				//props.setTreatPackagesAsDirectories(true);
+				
+				String path = NativeDialogs.showSaveDialog(props);
+				if(path != null) {
+					System.out.println("R:" + path);
+				}
+				
+				final MessageDialogProperties messageProps = new MessageDialogProperties();
+				messageProps.setParentWindow(NativeDialogsTest.this);
+				messageProps.setOptions(MessageDialogProperties.yesNoCancelOptions);
+				messageProps.setRunAsync(false);
+				messageProps.setHeader("Hello world");
+				messageProps.setMessage("This is a test!");
+				
+				
+				int retVal = NativeDialogs.showMessageDialog(messageProps);
+				System.out.println(retVal);
 			}
 		};
 		browseAct.putValue(Action.NAME, "Browse for file...");

@@ -94,259 +94,149 @@ void sendDialogResult(JNIEnv *env, jobject listener, jobject result) {
 /**
  * Process a list of filters into an NSArray of file extensions
  */
-NSArray *processFilters(JNIEnv *env, jobjectArray filters) {
+NSArray *GetAllowedFiletypes(JNIEnv *env, jobject filefilter) {
 	const char *szClassName = "ca/phon/ui/nativedialogs/FileFilter";
-	const char *szMethodSig = "()[Ljava/lang/String;";
-	const char *szMethodName = "exts";
-	
-	NSMutableArray *retVal = [[NSMutableArray alloc] init];
-	
+	const char *szMethodSig = "()Ljava/util/List;";
+	const char *szMethodName = "getAllExtensions";
+
+	const char *szListClass = "java/util/List";
+	const char *szGetMethod = "get";
+	const char *szGetMethodSig = "(I)Ljava/lang/Object;";
+	const char *szSizeMethod = "size";
+	const char *szSizeMethodSig = "()I";
+		
 	jclass FileFilter = env->FindClass(szClassName);
 	jmethodID exts = env->GetMethodID(FileFilter, szMethodName, szMethodSig);
 	
-	int count = env->GetArrayLength(filters);
+	jclass List = env->FindClass(szListClass);
+	jmethodID get = env->GetMethodID(List, szGetMethod, szGetMethodSig);
+	jmethodID size = env->GetMethodID(List, szSizeMethod, szSizeMethodSig);
+	
+	NSMutableArray *retVal = [[NSMutableArray alloc] init];
+	
+	jobject extList = env->CallObjectMethod(filefilter, exts);
+	int count = env->CallIntMethod(extList, size);
+	
 	for(int i = 0; i < count; i++) {
-		jobject filter = env->GetObjectArrayElement(filters, i);
-		jobjectArray extArray = (jobjectArray)env->CallObjectMethod(filter, exts);
-		
-		// add each extension to our return array
-		int extCount = env->GetArrayLength(extArray);
-		for(int j = 0; j < extCount; j++) {
-			jstring ext = (jstring)env->GetObjectArrayElement(extArray, j);
-			[retVal addObject:[JNFJavaToNSString(env, ext) substringFromIndex:1]];
-		}
+		jstring ext = (jstring)env->CallObjectMethod(extList, get, i);
+		[retVal addObject:JNFJavaToNSString(env, ext)];
 	}
 	
 	return retVal;
 }
 
-/*
- * Class:     ca_phon_ui_nativedialogs_NativeDialogs
- * Method:    nativeBrowseForFile
- * Signature: (Ljava/awt/Window;Lca/phon/ui/nativedialogs/NativeDialogListener;Ljava/lang/String;Ljava/lang/String;[Lca/phon/ui/nativedialogs/FileFilter;Ljava/lang/String;)V
+/**
+ * Retrive an object from a property map
  */
-JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeBrowseForFile
-  (JNIEnv *env, jclass clazz, jobject parentWindow, 
-	jobject listener, jstring startDir, jstring defaultExt, 
-	jobjectArray filters, jstring title) {
-	JNF_COCOA_ENTER(env)
+ jobject GetProperty(JNIEnv* env, jobject props, jstring propName) {
+	const char *szMethodName = "get";
+	const char *szMethodSig = "(Ljava/lang/Object;)Ljava/lang/Object;";
 	
-	// convert window ref
-	NSWindow *nsParentWindow = 
-		(parentWindow != NULL ? convertToNSWindow(env, parentWindow) : NULL);
-
-	// convert strings
-	NSString *nsStartFolder = 
-		(startDir != NULL ? JNFJavaToNSString(env, startDir) : NULL);
-	NSString *nsDefaultExt = 
-		(defaultExt != NULL ? JNFJavaToNSString(env, defaultExt) : NULL);
-	NSString *nsTitle =
-		(title != NULL ? JNFJavaToNSString(env, title) : NULL);
-		
-	NSArray *nsFilters = 
-		(filters != NULL ? processFilters(env, filters) : NULL);
+	jclass clazz = env->GetObjectClass(props);
+	jmethodID get = env->GetMethodID(clazz, szMethodName, szMethodSig);
 	
-	if(nsFilters == NULL) {
-		// check for a default extension
-		nsFilters = [NSArray arrayWithObject:nsDefaultExt];
-	}
-		
-	jobject gListener = env->NewGlobalRef(listener);
-	
-    void (^block)(void);
-    block = ^(void){
-        NSOpenPanel *openPanel = [[NSOpenPanel openPanel] retain];
-		[openPanel setCanChooseFiles:YES];
-		[openPanel setCanChooseDirectories:NO];
-		[openPanel setAllowsMultipleSelection:NO];
-		
-		if(nsTitle)
-			[openPanel setTitle:nsTitle];
-			
-		if(nsFilters)
-			[openPanel setAllowedFileTypes:nsFilters];
-			
-		if(nsStartFolder) {
-			NSURL *nsStartURL = [NSURL URLWithString:nsStartFolder];
-			[openPanel setDirectoryURL:nsStartURL];
-		}
-		
-		void (^handler)(NSInteger) = ^(NSInteger result){
-			NSURL *selectedURL = nil;
-			if (result == NSFileHandlingPanelOKButton) {
-		        for (NSURL *fileURL in [openPanel URLs]) {
-		        	selectedURL = fileURL;
-		        }
-		    }
-		    
-		    bool detach = false;
-			JNIEnv *env = NULL;
-			GetJNIEnv(&env, &detach);
-	    	jobject dlgevt = NULL;
-		    if(selectedURL != nil) {
-		    	jstring filePath = JNFNSToJavaString(env, [selectedURL path]);
-		    	dlgevt = createDialogResult(env, RESULT_OK, filePath);
-		    } else {
-		    	dlgevt = createDialogResult(env, RESULT_CANCEL, NULL);
-		    }
-		
-			sendDialogResult(env, gListener, dlgevt);
-			
-			env->DeleteGlobalRef(gListener);
-		    
-			[openPanel release];
-		};
-		
-		if(nsParentWindow) {
-			[openPanel beginSheetModalForWindow:nsParentWindow completionHandler:handler];
-		} else {
-			[openPanel beginWithCompletionHandler:handler];
-		}
-		
-    };
-    
-    if ( [NSThread isMainThread]){
-        block();
-    } else {
-        [JNFRunLoop performOnMainThreadWaiting:YES withBlock:block];
-    }
-    
-	JNF_COCOA_EXIT(env)
+	return env->CallObjectMethod(props, get, propName);
 }
 
-/*
- * Class:     ca_phon_ui_nativedialogs_NativeDialogs
- * Method:    nativeBrowseForDirectory
- * Signature: (Ljava/awt/Window;Lca/phon/ui/nativedialogs/NativeDialogListener;Ljava/lang/String;Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeBrowseForDirectory
-  (JNIEnv *env, jclass clazz, jobject parentWindow, jobject listener, jstring startDir, jstring title) {
-	JNF_COCOA_ENTER(env)
-	
-	// convert window ref
-	NSWindow *nsParentWindow = 
-		(parentWindow != NULL ? convertToNSWindow(env, parentWindow) : NULL);
+jobject GetProperty(JNIEnv *env, jobject props, NSString *propName) {
+	return GetProperty(env, props, JNFNSToJavaString(env, propName));
+}
 
-	// convert strings
-	NSString *nsStartFolder = 
-		(startDir != NULL ? JNFJavaToNSString(env, startDir) : NULL);
-	NSString *nsTitle =
-		(title != NULL ? JNFJavaToNSString(env, title) : NULL);
-		
-	jobject gListener = env->NewGlobalRef(listener);
+bool GetBool(JNIEnv *env, jobject obj) {
+	const char *szMethodName = "booleanValue";
+	const char *szMethodSig = "()Z";
 	
-    void (^block)(void);
-    block = ^(void){
-        NSOpenPanel *openPanel = [[NSOpenPanel openPanel] retain];
-		[openPanel setCanChooseFiles:NO];
-		[openPanel setCanChooseDirectories:YES];
-		[openPanel setAllowsMultipleSelection:NO];
-		[openPanel setCanCreateDirectories:YES];
-		
-		if(nsTitle)
-			[openPanel setTitle:nsTitle];
-			
-		if(nsStartFolder) {
-			NSURL *nsStartURL = [NSURL URLWithString:nsStartFolder];
-			[openPanel setDirectoryURL:nsStartURL];
-		}
-		
-		void (^handler)(NSInteger) = ^(NSInteger result){
-			NSURL *selectedURL = nil;
-			if (result == NSFileHandlingPanelOKButton) {
-		        for (NSURL *fileURL in [openPanel URLs]) {
-		        	selectedURL = fileURL;
-		        }
-		    }
-		    
-		    bool detach = false;
-			JNIEnv *env = NULL;
-			GetJNIEnv(&env, &detach);
-	    	jobject dlgevt = NULL;
-		    if(selectedURL != nil) {
-		    	jstring filePath = JNFNSToJavaString(env, [selectedURL path]);
-		    	dlgevt = createDialogResult(env, RESULT_OK, filePath);
-		    } else {
-		    	dlgevt = createDialogResult(env, RESULT_CANCEL, NULL);
-		    }
-		
-			sendDialogResult(env, gListener, dlgevt);
-			
-			env->DeleteGlobalRef(gListener);
-		    
-			[openPanel release];
-		};
-		
-		if(nsParentWindow) {
-			[openPanel beginSheetModalForWindow:nsParentWindow completionHandler:handler];
-		} else {
-			[openPanel beginWithCompletionHandler:handler];
-		}
-		
-    };
-    
-    if ( [NSThread isMainThread]){
-        block();
-    } else {
-        [JNFRunLoop performOnMainThreadWaiting:YES withBlock:block];
-    }
-    
-	JNF_COCOA_EXIT(env)
+	jclass clazz = env->GetObjectClass(obj);
+	jmethodID methodID = env->GetMethodID(clazz, szMethodName, szMethodSig);
+	
+	return env->CallBooleanMethod(obj, methodID);
 }
 
 /*
  * Class:     ca_phon_ui_nativedialogs_NativeDialogs
  * Method:    nativeShowSaveFileDialog
- * Signature: (Ljava/awt/Window;Lca/phon/ui/nativedialogs/NativeDialogListener;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[Lca/phon/ui/nativedialogs/FileFilter;Ljava/lang/String;)V
+ * Signature: (Lca/phon/ui/nativedialogs/SaveDialogProperties;)V
  */
-JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSaveFileDialog
-  (JNIEnv *env, jclass clazz, jobject parentWindow, jobject listener, 
-	jstring startDir, jstring fileName, jstring defaultExt, 
-	jobjectArray filters, jstring title) {
-	JNF_COCOA_ENTER(env)
+JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSaveDialog
+  (JNIEnv *env, jclass clazz, jobject props) {
+  	JNF_COCOA_ENTER(env)
+  	
+	// get all relevant properties
+	jobject titleObj = GetProperty(env, props, @"title");
+	NSString *title = (titleObj ? JNFJavaToNSString(env, (jstring)titleObj) : nil);
 	
-	// convert window ref
-	NSWindow *nsParentWindow = 
-		(parentWindow != NULL ? convertToNSWindow(env, parentWindow) : NULL);
-
-	// convert strings
-	NSString *nsStartFolder = 
-		(startDir != NULL ? JNFJavaToNSString(env, startDir) : NULL);
-	NSString *nsDefaultExt = 
-		(defaultExt != NULL ? JNFJavaToNSString(env, defaultExt) : NULL);
-	NSString *nsTitle =
-		(title != NULL ? JNFJavaToNSString(env, title) : NULL);
-	NSString *nsFile =
-		(fileName != NULL ? JNFJavaToNSString(env, fileName) : NULL);
-		
-	NSArray *nsFilters = 
-		(filters != NULL ? processFilters(env, filters) : NULL);
+	jobject promptObj = GetProperty(env, props, @"prompt");
+	NSString *prompt = (promptObj ? JNFJavaToNSString(env, (jstring)promptObj) : nil); 
 	
-	if(nsFilters == NULL) {
-		// check for a default extension
-		nsFilters = [NSArray arrayWithObject:nsDefaultExt];
-	}
-		
-	jobject gListener = env->NewGlobalRef(listener);
+	jobject nflObj = GetProperty(env, props, @"name_field_label");
+	NSString *nameFieldLabel = (nflObj ? JNFJavaToNSString(env, (jstring)nflObj) : nil);
+	
+	jobject parentWindowObj = GetProperty(env, props, @"parent_window");
+	NSWindow *parentWindow = (parentWindowObj ? convertToNSWindow(env, parentWindowObj) : nil);
+	
+	jobject initialFolderObj = GetProperty(env, props, @"initial_folder");
+	NSString *initialFolder = (initialFolderObj ? JNFJavaToNSString(env, (jstring)initialFolderObj) : nil);
+	
+	jobject filenameObj = GetProperty(env, props, @"initial_file");
+	NSString *filename = (filenameObj ? JNFJavaToNSString(env, (jstring)filenameObj) : nil);
+	
+	jobject filterObj = GetProperty(env, props, @"file_filter");
+	NSArray *nsFilters = (filterObj ? GetAllowedFiletypes(env, filterObj) : nil);
+	
+	jobject messageObj = GetProperty(env, props, @"message");
+	NSString *message = (messageObj ? JNFJavaToNSString(env, (jstring)messageObj) : nil);
+	
+	jobject canCreateFoldersObj = GetProperty(env, props, @"can_create_directories");
+	bool canCreateFolders = (canCreateFoldersObj ? GetBool(env, canCreateFoldersObj) : false);
+	
+	jobject tpadObj = GetProperty(env, props, @"treat_pacakges_as_directories");
+	bool tpad = (tpadObj ? GetBool(env, tpadObj) : false);
+	
+	jobject showHiddenObj = GetProperty(env, props, @"show_hidden");
+	bool showHidden = (showHiddenObj ? GetBool(env, showHiddenObj) : false);
+	
+	jobject hideExtensionObj = GetProperty(env, props, @"hide_extension");
+	bool hideExtension = (hideExtensionObj ? GetBool(env, hideExtensionObj) : false);
+	
+	jobject canSelectHideExtensionObj = GetProperty(env, props, @"can_select_hide_extension");
+	bool canSelectHideExtension = (canSelectHideExtensionObj ? GetBool(env, canSelectHideExtensionObj) : false);
+	
+	jobject gListener = env->NewGlobalRef(GetProperty(env, props, @"listener"));
 	
     void (^block)(void);
     block = ^(void){
         NSSavePanel *savePanel = [[NSSavePanel savePanel] retain];
-        [savePanel setCanCreateDirectories:YES];
+        [savePanel setCanCreateDirectories:canCreateFolders];
+        [savePanel setTreatsFilePackagesAsDirectories:tpad];
+        [savePanel setShowsHiddenFiles:showHidden];
+        [savePanel setExtensionHidden:hideExtension];
+        [savePanel setCanSelectHiddenExtension:canSelectHideExtension];
 		
-		if(nsTitle)
-			[savePanel setTitle:nsTitle];
+		if(title)
+			[savePanel setTitle:title];
 			
 		if(nsFilters)
 			[savePanel setAllowedFileTypes:nsFilters];
 			
-		if(nsStartFolder) {
-			NSURL *nsStartURL = [NSURL URLWithString:nsStartFolder];
+		if(initialFolder) {
+			NSURL *nsStartURL = [NSURL fileURLWithPath:initialFolder];
 			[savePanel setDirectoryURL:nsStartURL];
 		}
 		
-		if(nsFile) {
-			[savePanel setNameFieldStringValue:nsFile];
+		if(filename) {
+			[savePanel setNameFieldStringValue:filename];
+		}
+		
+		if(prompt) {
+			[savePanel setPrompt:prompt];
+		}
+		
+		if(nameFieldLabel) {
+			[savePanel setNameFieldLabel:nameFieldLabel];
+		}
+		
+		if(message) {
+			[savePanel setMessage:message];
 		}
 		
 		void (^handler)(NSInteger) = ^(NSInteger result){
@@ -373,8 +263,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 			[savePanel release];
 		};
 		
-		if(nsParentWindow) {
-			[savePanel beginSheetModalForWindow:nsParentWindow completionHandler:handler];
+		if(parentWindow) {
+			[savePanel beginSheetModalForWindow:parentWindow completionHandler:handler];
 		} else {
 			[savePanel beginWithCompletionHandler:handler];
 		}
@@ -429,25 +319,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 }
 
 - (void)sendEventForNSAlertReturn:(NSInteger)alertReturn jnienv:(JNIEnv*)env dialogListener:(jobject)listener {
-	int resultCode = RESULT_UNKNOWN;
-	
-	switch(alertReturn) {
-	case NSAlertDefaultReturn:
-		resultCode = (self.yesNo ? ANSWER_YES : RESULT_OK);
-		break;
-		
-	case NSAlertAlternateReturn:
-		resultCode = RESULT_CANCEL;
-		break;
-		
-	case NSAlertOtherReturn:
-		resultCode = (self.yesNo ? ANSWER_NO : RESULT_CANCEL);
-		break;
-		
-	default:
-		break;
-	}
-	
+	int resultCode = alertReturn - NSAlertFirstButtonReturn;
 	jobject dlgevt = createDialogResult(env, resultCode, NULL);
 	sendDialogResult(env, listener, dlgevt);
 }
@@ -457,23 +329,36 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 
 /*
  * Class:     ca_phon_ui_nativedialogs_NativeDialogs
- * Method:    nativeShowYesNoCancelDialog
- * Signature: (Ljava/awt/Window;Lca/phon/ui/nativedialogs/NativeDialogListener;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+ * Method:    nativeShowMessageDialog
+ * Signature: (Lca/phon/ui/nativedialogs/MessageDialogProperties;)V
  */
-JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowYesNoCancelDialog
-  (JNIEnv *env, jclass clazz, jobject parentWindow, jobject listener, jstring unused, jstring title, jstring message) {
+JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowMessageDialog
+  (JNIEnv *env, jclass clazz, jobject props) {
 	JNF_COCOA_ENTER(env)
 	
-	// convert window ref
-	NSWindow *nsParentWindow = 
-		(parentWindow != NULL ? convertToNSWindow(env, parentWindow) : NULL);
-
-	// convert strings
-	NSString *nsTitle =
-		(title != NULL ? JNFJavaToNSString(env, title) : NULL);
-	NSString *nsMsg = 
-		(message != NULL ? JNFJavaToNSString(env, message) : NULL);
-		
+	// get all relevant properties
+	jobject headerObj = GetProperty(env, props, @"header");
+	NSString *header = (headerObj ? JNFJavaToNSString(env, (jstring)headerObj) : nil);
+	
+	jobject parentWindowObj = GetProperty(env, props, @"parent_window");
+	NSWindow *parentWindow = (parentWindowObj ? convertToNSWindow(env, parentWindowObj) : nil);
+	
+	jobject messageObj = GetProperty(env, props, @"message");
+	NSString *message = (messageObj ? JNFJavaToNSString(env, (jstring)messageObj) : nil);
+	
+	jobject optionsObj = GetProperty(env, props, @"options");
+	jobjectArray options = (optionsObj ? (jobjectArray)optionsObj : NULL);
+	
+	jobject listener = GetProperty(env, props, @"listener");
+	
+	NSMutableArray *nsOptions = [[NSMutableArray alloc] init];
+	int count = env->GetArrayLength(options);
+	for(int i = 0; i < count; i++) {
+		jobject obj = env->GetObjectArrayElement(options, i);
+		NSString *btnTxt = JNFJavaToNSString(env, (jstring)obj);
+		[nsOptions addObject:btnTxt];
+	}
+	
 	jobject gListener = env->NewGlobalRef(listener);
 	
 	AlertFinished *alertListener = 
@@ -482,17 +367,18 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowYes
 	// create alert
 	void (^block)(void);
 	block = ^(void) {
-		NSAlert *alert = 
-			[[NSAlert 
-				alertWithMessageText:nsTitle
-				defaultButton: @"Yes"
-				alternateButton:@"Cancel"
-				otherButton:@"No"
-				informativeTextWithFormat:nsMsg] retain];
+		NSAlert *alert = [[[NSAlert alloc] init] retain];
+		[alert setAlertStyle:NSWarningAlertStyle];
+		[alert setMessageText:header];
+		[alert setInformativeText:message];
 		
-		if(nsParentWindow) {
+		for(int i = 0; i < [nsOptions count]; i++) {
+			[alert addButtonWithTitle:[nsOptions objectAtIndex:i]];
+		}
+		
+		if(parentWindow) {
 			[alert 
-				beginSheetModalForWindow:nsParentWindow
+				beginSheetModalForWindow:parentWindow
 				modalDelegate:alertListener
 				didEndSelector:@selector(alertDidEnd:returnCode:contextInfo:)
 				contextInfo:gListener];
