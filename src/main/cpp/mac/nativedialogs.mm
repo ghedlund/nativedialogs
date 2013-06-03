@@ -492,7 +492,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowMes
 	NSString *message = (messageObj ? JNFJavaToNSString(env, (jstring)messageObj) : nil);
 	
 	jobject optionsObj = GetProperty(env, props, @"options");
-	jobjectArray options = (optionsObj ? (jobjectArray)optionsObj : NULL);
+	jobjectArray options = (optionsObj ? (jobjectArray)optionsObj : 
+								env->NewObjectArray(1, env->FindClass("java/lang/String"), env->NewStringUTF("Ok")));
 	
 	jobject showSuppressionObj = GetProperty(env, props, @"show_suppression_box");
 	bool showSuppression = (showSuppressionObj ? GetBool(env, showSuppressionObj) : false);

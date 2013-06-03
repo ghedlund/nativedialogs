@@ -85,9 +85,8 @@ public class NativeDialogs {
 			retVal = showMessageDialog((MessageDialogProperties)props);
 		} else if(props instanceof FontDialogProperties) {
 			retVal = showFontDialog((FontDialogProperties)props);
-		} else {
-			// do nothing
-			LOGGER.warning("Unknown dialog type " + props.getClass().getName());
+		} else if(props instanceof ColorDialogProperties) {
+			retVal = showColorDialog((ColorDialogProperties)props);
 		}
 		
 		return retVal;
@@ -199,7 +198,12 @@ public class NativeDialogs {
 			properties.setListener(mwl);
 		}
 		if(libraryFound && !properties.isForceUseSwing()) {
-			nativeShowOpenDialog(properties);
+			try {
+				nativeShowOpenDialog(properties);
+			} catch (UnsatisfiedLinkError e) {
+				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				swingShowOpenDialog(properties);
+			}
 		} else {
 			swingShowOpenDialog(properties);
 		}
@@ -528,7 +532,12 @@ public class NativeDialogs {
 			properties.setListener(mwl);
 		}
 		if(libraryFound && !properties.isForceUseSwing()) {
-			nativeShowSaveDialog(properties);
+			try {
+				nativeShowSaveDialog(properties);
+			} catch (UnsatisfiedLinkError e) {
+				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				swingShowSaveDialog(properties);
+			}
 		} else {
 			swingShowSaveDialog(properties);
 		}
@@ -741,7 +750,12 @@ public class NativeDialogs {
 			properties.setListener(mwl);
 		}
 		if(libraryFound && !properties.isForceUseSwing()) {
-			nativeShowMessageDialog(properties);
+			try {
+				nativeShowMessageDialog(properties);
+			} catch (UnsatisfiedLinkError e) {
+				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				swingShowMessageDialog(properties);
+			}
 		} else {
 			swingShowMessageDialog(properties);
 		}
@@ -787,7 +801,7 @@ public class NativeDialogs {
 	 */
 	private native static void nativeShowFontDialog(FontDialogProperties properties);
 	
-	private static void swingShowFontSelectionDialog(FontDialogProperties properties) {
+	private static void swingShowFontDialog(FontDialogProperties properties) {
 		final Runnable task = new ShowFontSelectionTask(properties);
 		
 		if(SwingUtilities.isEventDispatchThread()) {
@@ -848,9 +862,14 @@ public class NativeDialogs {
 			properties.setListener(mwl);
 		}
 		if(libraryFound && !properties.isForceUseSwing()) {
-			nativeShowFontDialog(properties);
+			try {
+				nativeShowFontDialog(properties);
+			} catch (UnsatisfiedLinkError e) {
+				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				swingShowFontDialog(properties);
+			}
 		} else {
-			swingShowFontSelectionDialog(properties);
+			swingShowFontDialog(properties);
 		}
 		if(!properties.isRunAsync()) {
 			final MessageWaitListener mwl = (MessageWaitListener)properties.getListener();
@@ -883,7 +902,10 @@ public class NativeDialogs {
 		final FontDialogProperties props = new FontDialogProperties();
 		props.setParentWindow(parentWindow);
 		props.setListener(listener);
-		
+		props.setFontName(fontName);
+		props.setFontSize(fontSize);
+		props.setBold((fontStyle & Font.BOLD) != 0);
+		props.setItalic((fontStyle & Font.ITALIC) != 0);
 		showFontDialog(props);
 	}
 	
@@ -894,20 +916,10 @@ public class NativeDialogs {
 	 * @param listener
 	 * @param currentColor as a 24-bit hex string
 	 */
-	private native static void nativeShowColorSelectionDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			int red, int green,
-			int blue, int alpha);
+	private native static void nativeShowColorDialog(ColorDialogProperties props);
 	
-	private static void swingShowColorSelectionDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			int red, int green,
-			int blue, int alpha) {
-		final Runnable task = new ShowColorSelectionTask(
-				parentWindow, listener,
-				red, green, blue, alpha);
+	private static void swingShowColorDialog(ColorDialogProperties props) {
+		final Runnable task = new ShowColorSelectionTask(props);
 		
 		if(SwingUtilities.isEventDispatchThread()) {
 			// don't block awt thread
@@ -917,35 +929,54 @@ public class NativeDialogs {
 		}
 	}
 	
+	/**
+	 * Show color selection dialog
+	 * 
+	 * @param properties
+	 *
+	 * @return selected color if props.isRunAsync() is false, <code>null</code> otherwise
+	 */
+	public static Color showColorDialog(ColorDialogProperties properties) {
+		Color retVal = null;
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = new MessageWaitListener();
+			properties.setListener(mwl);
+		}
+		if(libraryFound && !properties.isForceUseSwing()) {
+			try {
+				nativeShowColorDialog(properties);
+			} catch (UnsatisfiedLinkError e) {
+				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				swingShowColorDialog(properties);
+			}
+		} else {
+			swingShowColorDialog(properties);
+		}
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = (MessageWaitListener)properties.getListener();
+			mwl.waitLoop();
+			
+			final NativeDialogEvent evt = mwl.getEvent();
+			if(evt.getDialogResult() == NativeDialogEvent.OK_OPTION)
+				retVal = (Color)evt.getDialogData();
+		}
+		return retVal;
+	}
+	
 	private static class ShowColorSelectionTask implements Runnable {
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private int red;
-		private int green;
-		private int blue;
-		private int alpha;
+		private ColorDialogProperties properties;
 		
-		public ShowColorSelectionTask(
-				Window parentWindow,
-				NativeDialogListener listener,
-				int red, int green,
-				int blue, int alpha) {
+		public ShowColorSelectionTask(ColorDialogProperties properties) {
 			super();
 			
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.red = red;
-			this.green = green;
-			this.blue = blue;
-			this.alpha = alpha;
+			this.properties = properties;
 		}
 		
 		@Override
 		public void run() {
-			Color startColor = new Color(red, green, blue, alpha);
+			Color startColor = properties.getColor();
 			
-//			JColorChooser chooser = new JColorChooser();
-			Color retVal = JColorChooser.showDialog(parentWindow, "Select Color", startColor);
+			Color retVal = JColorChooser.showDialog(properties.getParentWindow(), properties.getTitle(), startColor);
 			
 			NativeDialogEvent evt = null;
 			if(retVal != null) {
@@ -954,7 +985,7 @@ public class NativeDialogs {
 				evt = new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null);
 			}
 			
-			listener.nativeDialogEvent(evt);
+			properties.getListener().nativeDialogEvent(evt);
 		}
 	}
 	
@@ -963,22 +994,27 @@ public class NativeDialogs {
 	 * 
 	 * @param parentWindow
 	 * @param listener
-	 * @param currentColor as a 24-bit hex string
+	 * @param red
+	 * @param green
+	 * @param blue
+	 * @param alpha
+	 * 
+	 * @deprecated
 	 */
 	public static void showColorSelectionDialog(
 			Window parentWindow,
 			NativeDialogListener listener,
 			int red, int green,
 			int blue, int alpha) {
-		if(libraryFound) {
-			nativeShowColorSelectionDialog(
-					parentWindow, listener,
-					red, green, blue, alpha);
-		} else {
-			swingShowColorSelectionDialog(
-					parentWindow, listener,
-					red, green, blue, alpha);
-		}
+		final ColorDialogProperties props = new ColorDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setListener(listener);
+		props.setRed(red);
+		props.setGreen(green);
+		props.setBlue(blue);
+		props.setAlpha(alpha);
+		
+		showColorDialog(props);
 	}
 	
 	
@@ -1203,32 +1239,59 @@ public class NativeDialogs {
 		showMessageDialog(props);
 	}
 	
+	/**
+	 * Display font selection dialog
+	 * 
+	 * @param parentWindow
+	 * @param fontName
+	 * @param fontSize
+	 * @param fontStyle
+	 * 
+	 * @return
+	 *
+	 * @deprecated
+	 */
 	public static Font showFontSelectionDialogBlocking(
 			Window parentWindow,
 			String fontName,
 			int fontSize,
 			int fontStyle)
 	{
-		MessageWaitListener mwl = new MessageWaitListener();
-		showFontSelectionDialog(parentWindow, mwl, fontName, fontSize, fontStyle);
-		mwl.waitLoop();
-		
-		return (Font)mwl.getEvent().getDialogData();
+		final FontDialogProperties props = new FontDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setFontName(fontName);
+		props.setFontSize(fontSize);
+		props.setBold((fontStyle & Font.BOLD) != 0);
+		props.setItalic((fontStyle & Font.ITALIC) != 0);
+		return showFontDialog(props);
 	}
 	
+	/**
+	 * 
+	 * @param parentWindow
+	 * @param red
+	 * @param green
+	 * @param blue
+	 * @param alpha
+	 * @return selected color
+	 * 
+	 * @deprecated
+	 */
 	public static Color showColorSelectionDialogBlocking(
 			Window parentWindow,
 			int red, int green,
 			int blue, int alpha)
 	{
-		MessageWaitListener mwl = new MessageWaitListener();
-		showColorSelectionDialog(parentWindow, mwl, red, green, blue, alpha);
-		mwl.waitLoop();
+		final ColorDialogProperties props = new ColorDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setRunAsync(false);
+		props.setRed(red);
+		props.setGreen(green);
+		props.setBlue(blue);
+		props.setAlpha(alpha);
 		
-		return (Color)mwl.getEvent().getDialogData();
+		return showColorDialog(props);
 	}
-	
-	
 	
 	/**
 	 * Simple listener to wait for a native message dialog to close.
