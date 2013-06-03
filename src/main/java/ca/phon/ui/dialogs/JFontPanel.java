@@ -21,11 +21,14 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GraphicsEnvironment;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.Rectangle;
 
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.Scrollable;
@@ -35,19 +38,16 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
-import org.jdesktop.swingx.JXList;
-
-import com.jgoodies.forms.layout.CellConstraints;
-import com.jgoodies.forms.layout.FormLayout;
-
 
 public class JFontPanel extends JPanel {
 	
+	private static final long serialVersionUID = 2744815709681620887L;
+
 	/** The font name list */
-	private JXList fontNameList;
+	private JList fontNameList;
 	
 	/** The font size list */
-	private JXList fontSizeList;
+	private JList fontSizeList;
 	
 	/** Show all fonts? */
 	private JCheckBox suggestedFontsBox;
@@ -166,7 +166,7 @@ public class JFontPanel extends JPanel {
 		GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
 		
 		String[] fonts = env.getAvailableFontFamilyNames();
-		fontNameList = new JXList(fonts);
+		fontNameList = new JList(fonts);
 //		fontNameList.setFilterEnabled(true);
 //		fontNameList.setFilters(fp);
 		fontNameList.setSelectedValue(font.getFamily(), true);
@@ -179,7 +179,7 @@ public class JFontPanel extends JPanel {
 			
 		});
 		
-		fontSizeList = new JXList(fontSizes);
+		fontSizeList = new JList(fontSizes);
 		fontSizeList.setSelectedValue(font.getSize(), true);
 		fontSizeList.addListSelectionListener(new ListSelectionListener() {
 
@@ -229,34 +229,50 @@ public class JFontPanel extends JPanel {
 			
 		});
 		
-		FormLayout layout = new FormLayout(
-				"fill:min(200px;pref):grow, 3dlu, pref, 3dlu, pref:nogrow",
-				"pref, pref, 3dlu, pref, 3dlu, fill:pref:grow, pref, fill:50px");
-		setLayout(layout);
-		
-//		SystemProperties props = UserPrefManager.getUserPreferences();
-//		if(props.getProperty("pref_font_test_string") == null)
-//			props = UserPrefManager.getDefaultUserPreferences();
-//		String sampleText = props.getProperty("pref_font_test_string").toString();
-		
 		sampleDisplay = new SampleLabel();
 		sampleDisplay.setBackground(Color.white);
 		sampleDisplay.setOpaque(true);
 		sampleDisplay.setText(PREVIEW_TEXT);
 		sampleDisplay.setHorizontalAlignment(SwingConstants.CENTER);
 		sampleDisplay.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
-//		sampleDisplay.setMaximumSize(new Dimension(600, 50));
 		
-		CellConstraints cc = new CellConstraints();
+		final GridBagLayout layout = new GridBagLayout();
+		setLayout(layout);
 		
-//		add(new JLabel("Font Name:"), cc.xy(1, 1));
-		add(new JScrollPane(fontNameList), cc.xywh(1,2,1,5));
-//		add(new JLabel("Size:"), cc.xy(3, 1));
-		add(new JScrollPane(fontSizeList), cc.xywh(3,2,1,5));
-//		add(suggestedFontsBox, cc.xy(1, 7));
-		add(boldBox, cc.xy(5,2));
-		add(italicBox, cc.xy(5, 4));
-		add(new JScrollPane(sampleDisplay), cc.xyw(1, 8, 4));
+		GridBagConstraints gbc = new GridBagConstraints();
+		
+		// fontNameList
+		gbc.gridx = 0;
+		gbc.gridy = 0;
+		gbc.gridheight = 3;
+		gbc.gridwidth = 1;
+		gbc.weightx = 1;
+		gbc.weighty = 0;
+		final JScrollPane fontNameScroller = new JScrollPane(fontNameList);
+		add(fontNameScroller, gbc);
+		
+		final JScrollPane fontSizeScroller = new JScrollPane(fontSizeList);
+		gbc = (GridBagConstraints)gbc.clone();
+		gbc.gridx = 1;
+		gbc.weightx = 0;
+		add(fontSizeScroller, gbc);
+		
+		gbc = (GridBagConstraints)gbc.clone();
+		gbc.gridx = 2;
+		gbc.gridheight = 1;
+		add(boldBox, gbc);
+		
+		gbc = (GridBagConstraints)gbc.clone();
+		gbc.gridy = 1;
+		add(italicBox, gbc);
+		
+		final JScrollPane sampleScroller = new JScrollPane(sampleDisplay);
+		gbc = (GridBagConstraints)gbc.clone();
+		gbc.gridx = 0;
+		gbc.gridy = 3;
+		gbc.gridwidth = 3;
+		gbc.gridheight = 1;
+		add(sampleScroller, gbc);
 		
 		updateSelectedFont();
 	}
@@ -310,6 +326,8 @@ public class JFontPanel extends JPanel {
 	}
 	
 	private class SampleLabel extends JLabel implements Scrollable {
+
+		private static final long serialVersionUID = -1606948190545345132L;
 
 		@Override
 		public Dimension getPreferredScrollableViewportSize() {

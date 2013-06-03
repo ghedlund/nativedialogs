@@ -152,6 +152,158 @@ bool GetBool(JNIEnv *env, jobject obj) {
 	return env->CallBooleanMethod(obj, methodID);
 }
 
+jobject ToBool(JNIEnv* env, bool val) {
+	const char *szClassName = "java/lang/Boolean";
+	const char *szCstrSig = "(Z)V";
+	
+	jclass clazz = env->FindClass(szClassName);
+	jmethodID cstrID = env->GetMethodID(clazz, "<init>", szCstrSig);
+	
+	return env->NewObject(clazz, cstrID, val);
+}
+
+/*
+ * Class:     ca_phon_ui_nativedialogs_NativeDialogs
+ * Method:    nativeShowOpenDialog
+ * Signature: (Lca/phon/ui/nativedialogs/OpenDialogProperties;)V
+ */
+JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpenDialog
+ 	(JNIEnv *env, jclass clazz, jobject props) {
+ 	JNF_COCOA_ENTER(env)
+  	
+	// get all relevant properties
+	jobject titleObj = GetProperty(env, props, @"title");
+	NSString *title = (titleObj ? JNFJavaToNSString(env, (jstring)titleObj) : nil);
+	
+	jobject promptObj = GetProperty(env, props, @"prompt");
+	NSString *prompt = (promptObj ? JNFJavaToNSString(env, (jstring)promptObj) : nil); 
+	
+	jobject nflObj = GetProperty(env, props, @"name_field_label");
+	NSString *nameFieldLabel = (nflObj ? JNFJavaToNSString(env, (jstring)nflObj) : nil);
+	
+	jobject parentWindowObj = GetProperty(env, props, @"parent_window");
+	NSWindow *parentWindow = (parentWindowObj ? convertToNSWindow(env, parentWindowObj) : nil);
+	
+	jobject initialFolderObj = GetProperty(env, props, @"initial_folder");
+	NSString *initialFolder = (initialFolderObj ? JNFJavaToNSString(env, (jstring)initialFolderObj) : nil);
+	
+	jobject filenameObj = GetProperty(env, props, @"initial_file");
+	NSString *filename = (filenameObj ? JNFJavaToNSString(env, (jstring)filenameObj) : nil);
+	
+	jobject filterObj = GetProperty(env, props, @"file_filter");
+	NSArray *nsFilters = (filterObj ? GetAllowedFiletypes(env, filterObj) : nil);
+	
+	jobject messageObj = GetProperty(env, props, @"message");
+	NSString *message = (messageObj ? JNFJavaToNSString(env, (jstring)messageObj) : nil);
+	
+	jobject canCreateFoldersObj = GetProperty(env, props, @"can_create_directories");
+	bool canCreateFolders = (canCreateFoldersObj ? GetBool(env, canCreateFoldersObj) : false);
+	
+	jobject showHiddenObj = GetProperty(env, props, @"show_hidden");
+	bool showHidden = (showHiddenObj ? GetBool(env, showHiddenObj) : false);
+	
+	jobject canSelectFilesObj = GetProperty(env, props, @"can_choose_files");
+	bool canSelectFiles = (canSelectFilesObj ? GetBool(env, canSelectFilesObj) : nil);
+	
+	jobject canSelectFoldersObj = GetProperty(env, props, @"can_choose_directories");
+	bool canSelectFolders = (canSelectFoldersObj ? GetBool(env, canSelectFoldersObj) : nil);
+	
+	jobject allowMultipleSelectionObj = GetProperty(env, props, @"allow_multiple_selection");
+	bool allowMultipleSelection = (allowMultipleSelectionObj ? GetBool(env, allowMultipleSelectionObj) : nil);
+	
+	jobject gListener = env->NewGlobalRef(GetProperty(env, props, @"listener"));
+	
+    void (^block)(void);
+    block = ^(void){
+        NSOpenPanel *openPanel = [[NSOpenPanel openPanel] retain];
+        [openPanel setCanCreateDirectories:canCreateFolders];
+        [openPanel setShowsHiddenFiles:showHidden];
+        [openPanel setCanChooseFiles:canSelectFiles];
+        [openPanel setCanChooseDirectories:canSelectFolders];
+        [openPanel setAllowsMultipleSelection:allowMultipleSelection];
+		
+		if(title)
+			[openPanel setTitle:title];
+			
+		if(nsFilters)
+			[openPanel setAllowedFileTypes:nsFilters];
+			
+		if(initialFolder) {
+			NSURL *nsStartURL = [NSURL fileURLWithPath:initialFolder];
+			[openPanel setDirectoryURL:nsStartURL];
+		}
+		
+		if(filename) {
+			[openPanel setNameFieldStringValue:filename];
+		}
+		
+		if(prompt) {
+			[openPanel setPrompt:prompt];
+		}
+		
+		if(nameFieldLabel) {
+			[openPanel setNameFieldLabel:nameFieldLabel];
+		}
+		
+		if(message) {
+			[openPanel setMessage:message];
+		}
+		
+		void (^handler)(NSInteger) = ^(NSInteger result){
+			
+			bool detach = false;
+			JNIEnv *env = NULL;
+			GetJNIEnv(&env, &detach);
+			jobject data = NULL;
+			
+			if (result == NSFileHandlingPanelOKButton) {
+				if(!allowMultipleSelection) {
+		        	NSURL *selectedURL = [openPanel URL];
+		        	data = JNFNSToJavaString(env, [selectedURL path]);
+		        } else {
+		        	NSArray *urls = [openPanel URLs];
+		        	jclass String = env->FindClass("java/lang/String");
+		        	
+		        	jobjectArray pathArray = env->NewObjectArray([urls count], String, 0);
+		        	for(int i = 0; i < [urls count]; i++) {
+		        		env->SetObjectArrayElement(pathArray, i, JNFNSToJavaString(env, [[urls objectAtIndex:i] path]));
+		        	}
+		        	
+		        	data = pathArray;
+		        }
+		    }
+		    
+	    	jobject dlgevt = NULL;
+		    if(data != nil) {
+		    	dlgevt = createDialogResult(env, RESULT_OK, data);
+		    } else {
+		    	dlgevt = createDialogResult(env, RESULT_CANCEL, NULL);
+		    }
+		
+			sendDialogResult(env, gListener, dlgevt);
+			
+			env->DeleteGlobalRef(gListener);
+		    
+			[openPanel release];
+		};
+		
+		if(parentWindow) {
+			[openPanel beginSheetModalForWindow:parentWindow completionHandler:handler];
+		} else {
+			[openPanel beginWithCompletionHandler:handler];
+		}
+		
+    };
+    
+    if ([NSThread isMainThread]){
+        block();
+    } else {
+        [JNFRunLoop performOnMainThreadWaiting:YES withBlock:block];
+    }
+    
+	JNF_COCOA_EXIT(env)
+}
+
 /*
  * Class:     ca_phon_ui_nativedialogs_NativeDialogs
  * Method:    nativeShowSaveFileDialog
@@ -189,17 +341,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 	jobject canCreateFoldersObj = GetProperty(env, props, @"can_create_directories");
 	bool canCreateFolders = (canCreateFoldersObj ? GetBool(env, canCreateFoldersObj) : false);
 	
-	jobject tpadObj = GetProperty(env, props, @"treat_pacakges_as_directories");
-	bool tpad = (tpadObj ? GetBool(env, tpadObj) : false);
-	
 	jobject showHiddenObj = GetProperty(env, props, @"show_hidden");
 	bool showHidden = (showHiddenObj ? GetBool(env, showHiddenObj) : false);
-	
-	jobject hideExtensionObj = GetProperty(env, props, @"hide_extension");
-	bool hideExtension = (hideExtensionObj ? GetBool(env, hideExtensionObj) : false);
-	
-	jobject canSelectHideExtensionObj = GetProperty(env, props, @"can_select_hide_extension");
-	bool canSelectHideExtension = (canSelectHideExtensionObj ? GetBool(env, canSelectHideExtensionObj) : false);
 	
 	jobject gListener = env->NewGlobalRef(GetProperty(env, props, @"listener"));
 	
@@ -207,10 +350,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
     block = ^(void){
         NSSavePanel *savePanel = [[NSSavePanel savePanel] retain];
         [savePanel setCanCreateDirectories:canCreateFolders];
-        [savePanel setTreatsFilePackagesAsDirectories:tpad];
         [savePanel setShowsHiddenFiles:showHidden];
-        [savePanel setExtensionHidden:hideExtension];
-        [savePanel setCanSelectHiddenExtension:canSelectHideExtension];
 		
 		if(title)
 			[savePanel setTitle:title];
@@ -287,7 +427,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 @property (readwrite,assign) bool yesNo;
 - (id)init;
 - (void)alertDidEnd:(NSAlert*)alert returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo;
-- (void)sendEventForNSAlertReturn:(NSInteger)alertReturn jnienv:(JNIEnv*)env dialogListener:(jobject)listener; 
+- (void)sendEventForNSAlertReturn:(NSInteger)alertReturn jnienv:(JNIEnv*)env dialogListener:(jobject)listener data:(jobject)data; 
 @end
 
 @implementation AlertFinished 
@@ -311,16 +451,21 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 	JNIEnv* env;
 	GetJNIEnv(&env, &detach);
 	
-	[self sendEventForNSAlertReturn:returnCode jnienv:env dialogListener:gListener];
+	jobject data = NULL;
+	if([alert showsSuppressionButton]) { 
+		data = ToBool(env, [[alert suppressionButton] state] == NSOnState );
+	}
+	
+	[self sendEventForNSAlertReturn:returnCode jnienv:env dialogListener:gListener data:data];
 	
 	env->DeleteGlobalRef(gListener);
 	[alert release];
 	[self release];
 }
 
-- (void)sendEventForNSAlertReturn:(NSInteger)alertReturn jnienv:(JNIEnv*)env dialogListener:(jobject)listener {
+- (void)sendEventForNSAlertReturn:(NSInteger)alertReturn jnienv:(JNIEnv*)env dialogListener:(jobject)listener data:(jobject)data {
 	int resultCode = alertReturn - NSAlertFirstButtonReturn;
-	jobject dlgevt = createDialogResult(env, resultCode, NULL);
+	jobject dlgevt = createDialogResult(env, resultCode, data);
 	sendDialogResult(env, listener, dlgevt);
 }
 
@@ -349,6 +494,12 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowMes
 	jobject optionsObj = GetProperty(env, props, @"options");
 	jobjectArray options = (optionsObj ? (jobjectArray)optionsObj : NULL);
 	
+	jobject showSuppressionObj = GetProperty(env, props, @"show_suppression_box");
+	bool showSuppression = (showSuppressionObj ? GetBool(env, showSuppressionObj) : false);
+	
+	jobject suppressionMessageObj = GetProperty(env, props, @"suppression_message");
+	NSString *suppressionMessage = (suppressionMessageObj ? JNFJavaToNSString(env, (jstring)suppressionMessageObj) : nil);
+	
 	jobject listener = GetProperty(env, props, @"listener");
 	
 	NSMutableArray *nsOptions = [[NSMutableArray alloc] init];
@@ -371,6 +522,10 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowMes
 		[alert setAlertStyle:NSWarningAlertStyle];
 		[alert setMessageText:header];
 		[alert setInformativeText:message];
+		[alert setShowsSuppressionButton:showSuppression];
+		if(showSuppression && suppressionMessage) {
+			[[alert suppressionButton] setTitle:suppressionMessage];
+		}
 		
 		for(int i = 0; i < [nsOptions count]; i++) {
 			[alert addButtonWithTitle:[nsOptions objectAtIndex:i]];
@@ -389,7 +544,12 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowMes
 			bool detach;
 			JNIEnv* env;
 			GetJNIEnv(&env, &detach);
-			[alertListener sendEventForNSAlertReturn:alertResult jnienv:env dialogListener:gListener];
+			
+			jobject data = NULL;
+			if([alert showsSuppressionButton]) { 
+				data = ToBool(env, [[alert suppressionButton] state] == NSOnState );
+			}
+			[alertListener sendEventForNSAlertReturn:alertResult jnienv:env dialogListener:gListener data:data];
 			
 			env->DeleteGlobalRef(gListener);
 			[alert release];

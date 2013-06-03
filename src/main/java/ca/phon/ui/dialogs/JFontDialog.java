@@ -18,22 +18,21 @@
 package ca.phon.ui.dialogs;
 
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
 import javax.swing.UIManager;
-
-import com.jgoodies.forms.factories.ButtonBarFactory;
-import com.jgoodies.forms.layout.CellConstraints;
-import com.jgoodies.forms.layout.FormLayout;
 
 public class JFontDialog extends JDialog {
 	
+	private static final long serialVersionUID = 9031934456118714570L;
+
 	/** The font panel */
 	private JFontPanel fontPanel;
 	
@@ -61,13 +60,6 @@ public class JFontDialog extends JDialog {
 	}
 	
 	private void init(Font f) {
-		FormLayout layout = new FormLayout(
-				"5dlu, fill:pref:grow, 5dlu",
-				"5dlu, pref, 3dlu, fill:pref:grow, 3dlu, pref, 5dlu");
-		getContentPane().setLayout(new BorderLayout());
-		CellConstraints cc = new CellConstraints();
-		
-//		DialogHeader header = new DialogHeader("Choose Font", "");
 		
 		fontPanel = new JFontPanel(f);
 		
@@ -92,16 +84,13 @@ public class JFontDialog extends JDialog {
 			
 		});
 		
-		JComponent buttonBar = 
-			ButtonBarFactory.buildOKCancelBar(okButton, cancelButton);
+		final JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+		buttonBar.add(okButton);
+		buttonBar.add(cancelButton);
 		
-//		add(header, BorderLayout.NORTH);
+		setLayout(new BorderLayout());
 		add(fontPanel, BorderLayout.CENTER);
 		add(buttonBar, BorderLayout.SOUTH);
-		
-//		add(header, cc.xy(2, 2));
-//		add(fontPanel, cc.xy(2, 4));
-//		add(buttonBar, cc.xy(2, 6));
 	}
 
 	public boolean isOk() {

@@ -28,10 +28,14 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JCheckBox;
 import javax.swing.JColorChooser;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import ca.phon.ui.dialogs.JFontDialog;
@@ -59,6 +63,33 @@ public class NativeDialogs {
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "Unable to load native dialogs library, will fallback to Swing", e);
 		}
+	}
+	
+	/**
+	 * Show dialog based on given properties.
+	 * 
+	 * @param properties
+	 * 
+	 * @return the result of running the dialog.  See the specific
+	 *  showXDialog method for expected return values.
+	 */
+	public static Object showDialog(NativeDialogProperties props) {
+		Object retVal = null;
+		
+		if(props instanceof OpenDialogProperties) {
+			retVal = showOpenDialog((OpenDialogProperties)props);
+		} else if(props instanceof SaveDialogProperties) {
+			retVal = showSaveDialog((SaveDialogProperties)props);
+		} else if(props instanceof MessageDialogProperties) {
+			retVal = showMessageDialog((MessageDialogProperties)props);
+		} else if(props instanceof FontDialogProperties) {
+			retVal = showFontDialog((FontDialogProperties)props);
+		} else {
+			// do nothing
+			LOGGER.warning("Unknown dialog type " + props.getClass().getName());
+		}
+		
+		return retVal;
 	}
 	
 	/** 
@@ -94,6 +125,7 @@ public class NativeDialogs {
 		@Override
 		public void run() {
 			JFileChooser chooser = new JFileChooser();
+			chooser.setDialogType(JFileChooser.CUSTOM_DIALOG);
 			
 			if(properties.getInitialFolder() != null)
 				chooser.setCurrentDirectory(new File(properties.getInitialFolder()));
@@ -111,6 +143,8 @@ public class NativeDialogs {
 			
 			if(properties.getPrompt() != null)
 				chooser.setApproveButtonText(properties.getPrompt());
+			else
+				chooser.setApproveButtonText("Open");
 			
 			chooser.setFileHidingEnabled(!properties.isShowHidden());
 			
@@ -129,7 +163,7 @@ public class NativeDialogs {
 			chooser.setMultiSelectionEnabled(properties.isAllowMultipleSelection());
 			
 			NativeDialogEvent evt = null;
-			int retVal = chooser.showOpenDialog(properties.getParentWindow());
+			int retVal = chooser.showDialog(properties.getParentWindow(), null);
 			if(retVal == JFileChooser.APPROVE_OPTION) {
 				Object evtData = null;
 				
@@ -415,6 +449,7 @@ public class NativeDialogs {
 		@Override
 		public void run() {
 			JFileChooser chooser = new JFileChooser();
+			chooser.setDialogType(JFileChooser.CUSTOM_DIALOG);
 			
 			if(properties.getInitialFolder() != null)
 				chooser.setCurrentDirectory(new File(properties.getInitialFolder()));
@@ -432,6 +467,8 @@ public class NativeDialogs {
 			
 			if(properties.getPrompt() != null)
 				chooser.setApproveButtonText(properties.getPrompt());
+			else
+				chooser.setApproveButtonText("Save");
 			
 			chooser.setFileHidingEnabled(!properties.isShowHidden());
 			
@@ -441,7 +478,7 @@ public class NativeDialogs {
 			}
 			
 			NativeDialogEvent evt = null;
-			int retVal = chooser.showSaveDialog(properties.getParentWindow());
+			int retVal = chooser.showDialog(properties.getParentWindow(), null);
 			if(retVal == JFileChooser.APPROVE_OPTION) {
 				// create the dialog event
 				File selectedFile = chooser.getSelectedFile();
@@ -666,6 +703,25 @@ public class NativeDialogs {
 		
 		@Override
 		public void run() {
+			final String msg = "<html><h3>" + properties.getHeader() + "</h3>\n" + properties.getMessage();
+			final Icon icon = (properties.getIcon() != null ? new ImageIcon(properties.getIcon()) : null);
+			
+			Object msgPanelObjects = null;
+			final JCheckBox suppressionBox = new JCheckBox();
+			if(properties.isShowSuppressionBox()) {
+				suppressionBox.setText(
+						(properties.getSuppressionMessage() != null ? properties.getSuppressionMessage() : "Do not show this message again"));
+				msgPanelObjects = new Object[] { msg, suppressionBox };
+			} else {
+				msgPanelObjects = msg;
+			}
+			
+			int result = JOptionPane.showOptionDialog(properties.getParentWindow(), msgPanelObjects, properties.getTitle(), 
+					JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, icon,
+					properties.getOptions(), properties.getDefaultOption());
+			
+			final NativeDialogEvent evt = new NativeDialogEvent(result, (properties.isShowSuppressionBox() ? suppressionBox.isSelected() : null));
+			properties.getListener().nativeDialogEvent(evt);
 		}
 	}
 	
@@ -726,28 +782,12 @@ public class NativeDialogs {
 	/**
 	 * Show a font dialog.
 	 * 
-	 * @param fontName
-	 * @param fontSize
-	 * @param fontStyle
-	 * @param listener
+	 * @param properties
 	 */
-	private native static void nativeShowFontSelectionDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String fontName,
-			int fontSize,
-			int fontStyle
-			);
+	private native static void nativeShowFontSelectionDialog(FontDialogProperties properties);
 	
-	private static void swingShowFontSelectionDialog(
-			Window parentWindow,
-			NativeDialogListener listener,
-			String fontName,
-			int fontSize,
-			int fontStyle) {
-		final Runnable task = new ShowFontSelectionTask(
-				parentWindow, listener,
-				fontName, fontSize, fontStyle);
+	private static void swingShowFontSelectionDialog(FontDialogProperties properties) {
+		final Runnable task = new ShowFontSelectionTask(properties);
 		
 		if(SwingUtilities.isEventDispatchThread()) {
 			// don't block awt thread
@@ -758,61 +798,51 @@ public class NativeDialogs {
 	}
 	
 	private static class ShowFontSelectionTask implements Runnable {
-		private Window parentWindow;
-		private NativeDialogListener listener;
-		private String fontName;
-		private int fontSize;
-		private int fontStyle;
+		private FontDialogProperties properties;
 		
-		public ShowFontSelectionTask(
-				Window parentWindow,
-				NativeDialogListener listener,
-				String fontName,
-				int fontSize,
-				int fontStyle) {
+		public ShowFontSelectionTask(FontDialogProperties properties) {
 			super();
 			
-			this.parentWindow = parentWindow;
-			this.listener = listener;
-			this.fontName = fontName;
-			this.fontSize = fontSize;
-			this.fontStyle = fontStyle;
+			this.properties = properties;
 		}
 		
 		@Override
 		public void run() {
-//			if(!(parentWindow instanceof JFrame)) {
-//				NativeDialogEvent evt = new NativeDialogEvent();
+//			JFrame frame = (parentWindow instanceof JFrame ? (JFrame)parentWindow : null);
+//			
+//			// create a new dialog and display
+//			final JFontDialog fontDialog = new JFontDialog(frame, true);
+////			fontDialog.pack();
+//			fontDialog.setSize(new Dimension(500, 400));
+//			fontDialog.setResizable(false);
+//			fontDialog.setVisible(true);
+//			
+//			NativeDialogEvent evt = new NativeDialogEvent();
+//			
+//			if(fontDialog.isOk()) {
+//				evt.setDialogResult(NativeDialogEvent.OK_OPTION);
+//				evt.setDialogData(fontDialog.getSelectedFont());
+//			} else {
 //				evt.setDialogData(null);
 //				evt.setDialogResult(NativeDialogEvent.CANCEL_OPTION);
-//				
-//				listener.nativeDialogEvent(evt);
-//				return;
 //			}
-//			JFrame frame = (JFrame)parentWindow;
-			
-			JFrame frame = (parentWindow instanceof JFrame ? (JFrame)parentWindow : null);
-			
-			// create a new dialog and display
-			final JFontDialog fontDialog = new JFontDialog(frame, true);
-//			fontDialog.pack();
-			fontDialog.setSize(new Dimension(500, 400));
-			fontDialog.setResizable(false);
-			fontDialog.setVisible(true);
-			
-			NativeDialogEvent evt = new NativeDialogEvent();
-			
-			if(fontDialog.isOk()) {
-				evt.setDialogResult(NativeDialogEvent.OK_OPTION);
-				evt.setDialogData(fontDialog.getSelectedFont());
-			} else {
-				evt.setDialogData(null);
-				evt.setDialogResult(NativeDialogEvent.CANCEL_OPTION);
-			}
-			
-			listener.nativeDialogEvent(evt);
+//			
+//			listener.nativeDialogEvent(evt);
 		}
 				
+	}
+	
+	/**
+	 * Show a font dialog
+	 * 
+	 * @param properties
+	 */
+	public static Font showFontDialog(FontDialogProperties properties) {
+		Font retVal = null;
+		
+		
+		
+		return retVal;
 	}
 	
 	/**
@@ -822,6 +852,8 @@ public class NativeDialogs {
 	 * @param fontSize
 	 * @param fontStyle
 	 * @param listener
+	 * 
+	 * @deprecated
 	 */
 	public static void showFontSelectionDialog(
 			Window parentWindow,
@@ -830,15 +862,11 @@ public class NativeDialogs {
 			int fontSize,
 			int fontStyle
 			) {
-//		if(PhonUtilities.isMacOs() && libraryFound) {
-//			nativeShowFontSelectionDialog(
-//					parentWindow, listener,
-//					fontName, fontSize, fontStyle);
-//		} else {
-			swingShowFontSelectionDialog(
-					parentWindow, listener,
-					fontName, fontSize, fontStyle);
-//		}
+		final FontDialogProperties props = new FontDialogProperties();
+		props.setParentWindow(parentWindow);
+		props.setListener(listener);
+		
+		showFontDialog(props);
 	}
 	
 	/**

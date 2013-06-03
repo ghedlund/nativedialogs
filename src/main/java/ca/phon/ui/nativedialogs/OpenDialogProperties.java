@@ -1,5 +1,7 @@
 package ca.phon.ui.nativedialogs;
 
+import java.util.Map;
+
 public class OpenDialogProperties extends SaveDialogProperties {
 
 	private static final long serialVersionUID = -1152927514203658096L;
@@ -27,6 +29,10 @@ public class OpenDialogProperties extends SaveDialogProperties {
 		put(ALLOW_MULTIPLE_SELECTION, Boolean.FALSE);
 		put(CAN_CHOOSE_FILES, Boolean.TRUE);
 		put(CAN_CHOOSE_DIRECTORIES, Boolean.FALSE);
+	}
+	
+	public OpenDialogProperties(Map<String, Object> props) {
+		super(props);
 	}
 	
 	public boolean isAllowMultipleSelection() {

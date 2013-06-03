@@ -2,6 +2,7 @@ package ca.phon.ui.nativedialogs;
 
 import java.awt.Image;
 import java.lang.reflect.Array;
+import java.util.Map;
 
 /**
  * Message dialogs have a header, message
@@ -39,12 +40,12 @@ public class MessageDialogProperties extends NativeDialogProperties {
 	/**
 	 * Show supression checkbox
 	 */
-	public final static String SHOW_SUPRESSION_BOX = "show_supression_box";
+	public final static String SHOW_SUPPRESSION_BOX = "show_suppression_box";
 	
 	/**
 	 * Supression box message
 	 */
-	public final static String SUPRESSION_MESSAGE = "supression_message";
+	public final static String SUPPRESSION_MESSAGE = "suppression_message";
 	
 	/**
 	 * Icon
@@ -67,6 +68,10 @@ public class MessageDialogProperties extends NativeDialogProperties {
 	 */
 	public MessageDialogProperties() {
 		super();
+	}
+	
+	public MessageDialogProperties(Map<String, Object> props) {
+		super(props);
 	}
 	
 	public String getHeader() {
@@ -95,7 +100,7 @@ public class MessageDialogProperties extends NativeDialogProperties {
 	
 	public String[] getOptions() {
 		String[] retVal = new String[] { "Ok" };
-		if(get(OPTIONS) != null && get(OPTIONS) instanceof Array) {
+		if(get(OPTIONS) != null && get(OPTIONS) instanceof String[]) {
 			retVal = (String[])get(OPTIONS);
 		}
 		return retVal;
@@ -117,28 +122,28 @@ public class MessageDialogProperties extends NativeDialogProperties {
 		put(DEFAULT_OPTION, defaultOption);
 	}
 	
-	public boolean isShowSupressionBox() {
+	public boolean isShowSuppressionBox() {
 		Boolean retVal = Boolean.FALSE;
-		if(get(SHOW_SUPRESSION_BOX) != null) {
-			retVal = Boolean.valueOf(get(SHOW_SUPRESSION_BOX).toString());
+		if(get(SHOW_SUPPRESSION_BOX) != null) {
+			retVal = Boolean.valueOf(get(SHOW_SUPPRESSION_BOX).toString());
 		}
 		return retVal;
 	}
 	
-	public void setShowSupressionBox(boolean showSupressionBox) {
-		put(SHOW_SUPRESSION_BOX, showSupressionBox);
+	public void setShowSuppressionBox(boolean showSuppressionBox) {
+		put(SHOW_SUPPRESSION_BOX, showSuppressionBox);
 	}
 	
-	public String getSupressionMessage() {
+	public String getSuppressionMessage() {
 		String retVal = null;
-		if(get(SUPRESSION_MESSAGE) != null) {
-			retVal = get(SUPRESSION_MESSAGE).toString();
+		if(get(SUPPRESSION_MESSAGE) != null) {
+			retVal = get(SUPPRESSION_MESSAGE).toString();
 		}
 		return retVal;
 	}
 	
-	public void setSupressionMessage(String supressionMessage) {
-		put(SUPRESSION_MESSAGE, supressionMessage);
+	public void setSuppressionMessage(String suppressionMessage) {
+		put(SUPPRESSION_MESSAGE, suppressionMessage);
 	}
 	
 	public Image getIcon() {

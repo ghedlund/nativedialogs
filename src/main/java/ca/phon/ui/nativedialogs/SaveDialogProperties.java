@@ -1,5 +1,7 @@
 package ca.phon.ui.nativedialogs;
 
+import java.util.Map;
+
 /**
  * Properties for the save file dialog.
  *
@@ -32,12 +34,12 @@ public class SaveDialogProperties extends NativeDialogProperties {
 	 */
 	public final static String CAN_CREATE_DIRECTORIES = "can_create_directories";
 	
-	/**
-	 * Treat file packages as directories
-	 * 
-	 * MacOSX only
-	 */
-	public final static String TREAT_PACAKGES_AS_DIRECTORIES = "treat_packages_as_directories";
+//	/**
+//	 * Treat file packages as directories
+//	 * 
+//	 * MacOSX only
+//	 */
+//	public final static String TREAT_PACAKGES_AS_DIRECTORIES = "treat_packages_as_directories";
 	
 	/**
 	 * Set prompt text on default button
@@ -65,25 +67,29 @@ public class SaveDialogProperties extends NativeDialogProperties {
 	 */
 	public final static String SHOW_HIDDEN = "show_hidden";
 	
-	/**
-	 * Hide extension
-	 * 
-	 * Mac Only
-	 */
-	public final static String HIDE_EXTENSION = "hide_extension";
-	
-	/**
-	 * Can select hide extension
-	 * 
-	 * Mac Only
-	 */
-	public final static String CAN_SELECT_HIDE_EXTENSION = "can_select_hide_extension";
+//	/**
+//	 * Hide extension
+//	 * 
+//	 * Mac Only
+//	 */
+//	public final static String HIDE_EXTENSION = "hide_extension";
+//	
+//	/**
+//	 * Can select hide extension
+//	 * 
+//	 * Mac Only
+//	 */
+//	public final static String CAN_SELECT_HIDE_EXTENSION = "can_select_hide_extension";
 	
 	/**
 	 * Constructor
 	 */
 	public SaveDialogProperties() {
 		super();
+	}
+	
+	public SaveDialogProperties(Map<String, Object> props) {
+		super(props);
 	}
 	
 	public FileFilter getFileFilter() {
@@ -146,17 +152,17 @@ public class SaveDialogProperties extends NativeDialogProperties {
 		put(SHOW_HIDDEN, showHidden);
 	}
 	
-	public boolean treatPackagesAsDirectories() {
-		Boolean retVal = Boolean.FALSE;
-		if(get(TREAT_PACAKGES_AS_DIRECTORIES) != null) {
-			retVal = Boolean.valueOf(get(TREAT_PACAKGES_AS_DIRECTORIES).toString());
-		}
-		return retVal;
-	}
-	
-	public void setTreatPackagesAsDirectories(boolean treatPackagesAsDirectories) {
-		put(TREAT_PACAKGES_AS_DIRECTORIES, treatPackagesAsDirectories);
-	}
+//	public boolean treatPackagesAsDirectories() {
+//		Boolean retVal = Boolean.FALSE;
+//		if(get(TREAT_PACAKGES_AS_DIRECTORIES) != null) {
+//			retVal = Boolean.valueOf(get(TREAT_PACAKGES_AS_DIRECTORIES).toString());
+//		}
+//		return retVal;
+//	}
+//	
+//	public void setTreatPackagesAsDirectories(boolean treatPackagesAsDirectories) {
+//		put(TREAT_PACAKGES_AS_DIRECTORIES, treatPackagesAsDirectories);
+//	}
 	
 	public String getPrompt() {
 		String retVal = null;
@@ -194,27 +200,27 @@ public class SaveDialogProperties extends NativeDialogProperties {
 		put(MESSAGE, message);
 	}
 	
-	public boolean isHideExtension() {
-		Boolean retVal = Boolean.FALSE;
-		if(get(HIDE_EXTENSION) != null) {
-			retVal = Boolean.valueOf(get(HIDE_EXTENSION).toString());
-		}
-		return retVal;
-	}
-
-	public void setHideExtension(boolean hideExtension) {
-		put(HIDE_EXTENSION, hideExtension);
-	}
-	
-	public boolean isCanSelectHideExtension() {
-		Boolean retVal = Boolean.FALSE;
-		if(get(CAN_SELECT_HIDE_EXTENSION) != null) {
-			retVal = Boolean.valueOf(get(CAN_SELECT_HIDE_EXTENSION).toString());
-		}
-		return retVal;
-	}
-	
-	public void setCanSelectHideExtension(boolean canSelectHideExtension) {
-		put(CAN_SELECT_HIDE_EXTENSION, canSelectHideExtension);
-	}
+//	public boolean isHideExtension() {
+//		Boolean retVal = Boolean.FALSE;
+//		if(get(HIDE_EXTENSION) != null) {
+//			retVal = Boolean.valueOf(get(HIDE_EXTENSION).toString());
+//		}
+//		return retVal;
+//	}
+//
+//	public void setHideExtension(boolean hideExtension) {
+//		put(HIDE_EXTENSION, hideExtension);
+//	}
+//	
+//	public boolean isCanSelectHideExtension() {
+//		Boolean retVal = Boolean.FALSE;
+//		if(get(CAN_SELECT_HIDE_EXTENSION) != null) {
+//			retVal = Boolean.valueOf(get(CAN_SELECT_HIDE_EXTENSION).toString());
+//		}
+//		return retVal;
+//	}
+//	
+//	public void setCanSelectHideExtension(boolean canSelectHideExtension) {
+//		put(CAN_SELECT_HIDE_EXTENSION, canSelectHideExtension);
+//	}
 }

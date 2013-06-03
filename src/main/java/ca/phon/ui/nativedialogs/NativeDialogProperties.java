@@ -2,6 +2,7 @@ package ca.phon.ui.nativedialogs;
 
 import java.awt.Window;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Base class for native dialogs configuration.
@@ -41,6 +42,10 @@ public class NativeDialogProperties extends HashMap<String, Object> {
 	 */
 	public NativeDialogProperties() {
 		super();
+	}
+	
+	public NativeDialogProperties(Map<String, Object> props) {
+		super(props);
 	}
 	
 	public boolean isRunAsync() {
