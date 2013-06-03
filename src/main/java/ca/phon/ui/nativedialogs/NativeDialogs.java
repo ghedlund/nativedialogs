@@ -245,6 +245,7 @@ public class NativeDialogs {
 			String title) {
 		final OpenDialogProperties props = new OpenDialogProperties();
 		props.setParentWindow(parentWindow);
+		props.setCanCreateDirectories(true);
 		props.setInitialFolder(startDir);
 		props.setListener(listener);
 		final FileFilter filter = new FileFilter(filters);
@@ -275,6 +276,7 @@ public class NativeDialogs {
 			String title) {
 		final OpenDialogProperties props = new OpenDialogProperties();
 		props.setParentWindow(parentWindow);
+		props.setCanCreateDirectories(true);
 		props.setListener(listener);
 		props.setInitialFolder(startDir);
 		props.setTitle(title);
@@ -596,6 +598,7 @@ public class NativeDialogs {
 			String title) {
 		final SaveDialogProperties props = new SaveDialogProperties();
 		props.setParentWindow(parentWindow);
+		props.setCanCreateDirectories(true);
 		props.setInitialFolder(startDir);
 		props.setInitialFile(fileName);
 		final FileFilter filter = new FileFilter(filters);
@@ -1039,6 +1042,7 @@ public class NativeDialogs {
 	{
 		final OpenDialogProperties props = new OpenDialogProperties();
 		props.setParentWindow(parentWindow);
+		props.setCanCreateDirectories(true);
 		props.setRunAsync(false);
 		props.setInitialFolder(startDir);
 		final FileFilter filter = new FileFilter(filters);
@@ -1074,6 +1078,7 @@ public class NativeDialogs {
 	{
 		final OpenDialogProperties props = new OpenDialogProperties();
 		props.setParentWindow(parentWindow);
+		props.setCanCreateDirectories(true);
 		props.setRunAsync(false);
 		props.setInitialFolder(startDir);
 		props.setTitle(title);
@@ -1131,6 +1136,7 @@ public class NativeDialogs {
 	{
 		final SaveDialogProperties props = new SaveDialogProperties();
 		props.setParentWindow(parentWindow);
+		props.setCanCreateDirectories(true);
 		props.setRunAsync(false);
 		props.setInitialFolder(startDir);
 		props.setInitialFile(fileName);
