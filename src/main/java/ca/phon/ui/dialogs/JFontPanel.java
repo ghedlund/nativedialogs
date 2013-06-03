@@ -19,6 +19,7 @@ package ca.phon.ui.dialogs;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
@@ -77,7 +78,8 @@ public class JFontPanel extends JPanel {
 	/** The sample display */
 	private JLabel sampleDisplay;
 	
-	private final static String PREVIEW_TEXT = "\u00f0\u0259 \u02c8kw\u026ak \u02c8b\u0279a\u028an \u02c8f\u0251ks \u02c8d\u0292\u028cmps \u02c8o\u028av\u025a \u00f0\u0259 \u02c8le\u026a\u02cczi\u02d0 \u02c8d\u0251\u0261";
+	private final static String PREVIEW_TEXT = 
+			"\u00f0\u0259 \u02c8kw\u026ak \u02c8b\u0279a\u028an \u02c8f\u0251ks \u02c8d\u0292\u028cmps \u02c8o\u028av\u025a \u00f0\u0259 \u02c8le\u026a\u02cczi\u02d0 \u02c8d\u0251\u0261";
 	
 //	Filter filters[] = {
 //			new Filter() {
@@ -229,12 +231,11 @@ public class JFontPanel extends JPanel {
 			
 		});
 		
-		sampleDisplay = new SampleLabel();
+		sampleDisplay = new JLabel();
 		sampleDisplay.setBackground(Color.white);
 		sampleDisplay.setOpaque(true);
 		sampleDisplay.setText(PREVIEW_TEXT);
 		sampleDisplay.setHorizontalAlignment(SwingConstants.CENTER);
-		sampleDisplay.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 		
 		final GridBagLayout layout = new GridBagLayout();
 		setLayout(layout);
@@ -246,20 +247,24 @@ public class JFontPanel extends JPanel {
 		gbc.gridy = 0;
 		gbc.gridheight = 3;
 		gbc.gridwidth = 1;
-		gbc.weightx = 1;
-		gbc.weighty = 0;
+		gbc.weightx = 1.0;
+		gbc.weighty = 1.0;
+		gbc.anchor = GridBagConstraints.NORTHWEST;
+		gbc.fill = GridBagConstraints.BOTH;
 		final JScrollPane fontNameScroller = new JScrollPane(fontNameList);
+		fontNameScroller.setBorder(BorderFactory.createTitledBorder("Font name:"));
 		add(fontNameScroller, gbc);
 		
 		final JScrollPane fontSizeScroller = new JScrollPane(fontSizeList);
+		fontSizeScroller.setBorder(BorderFactory.createTitledBorder("Font size:"));
 		gbc = (GridBagConstraints)gbc.clone();
 		gbc.gridx = 1;
-		gbc.weightx = 0;
 		add(fontSizeScroller, gbc);
 		
 		gbc = (GridBagConstraints)gbc.clone();
 		gbc.gridx = 2;
 		gbc.gridheight = 1;
+		gbc.weighty = 0.0;
 		add(boldBox, gbc);
 		
 		gbc = (GridBagConstraints)gbc.clone();
@@ -267,14 +272,17 @@ public class JFontPanel extends JPanel {
 		add(italicBox, gbc);
 		
 		final JScrollPane sampleScroller = new JScrollPane(sampleDisplay);
+		sampleScroller.setBorder(BorderFactory.createTitledBorder("Preview"));
+		sampleScroller.setPreferredSize(sampleDisplay.getPreferredSize());
 		gbc = (GridBagConstraints)gbc.clone();
 		gbc.gridx = 0;
 		gbc.gridy = 3;
 		gbc.gridwidth = 3;
 		gbc.gridheight = 1;
+		gbc.weighty = 1.0;
 		add(sampleScroller, gbc);
 		
-		updateSelectedFont();
+//		updateSelectedFont();
 	}
 	
 	private void updateSelectedFont() {
@@ -325,36 +333,36 @@ public class JFontPanel extends JPanel {
 		firePropertyChange = true;
 	}
 	
-	private class SampleLabel extends JLabel implements Scrollable {
-
-		private static final long serialVersionUID = -1606948190545345132L;
-
-		@Override
-		public Dimension getPreferredScrollableViewportSize() {
-			return getPreferredSize();
-		}
-
-		@Override
-		public int getScrollableBlockIncrement(Rectangle visibleRect,
-				int orientation, int direction) {
-			return 60;
-		}
-
-		@Override
-		public boolean getScrollableTracksViewportHeight() {
-			return false;
-		}
-
-		@Override
-		public boolean getScrollableTracksViewportWidth() {
-			return false;
-		}
-
-		@Override
-		public int getScrollableUnitIncrement(Rectangle visibleRect,
-				int orientation, int direction) {
-			return 20;
-		}
-		
-	}
+//	private class SampleLabel extends JLabel implements Scrollable {
+//
+//		private static final long serialVersionUID = -1606948190545345132L;
+//
+//		@Override
+//		public Dimension getPreferredScrollableViewportSize() {
+//			return getPreferredSize();
+//		}
+//
+//		@Override
+//		public int getScrollableBlockIncrement(Rectangle visibleRect,
+//				int orientation, int direction) {
+//			return 60;
+//		}
+//
+//		@Override
+//		public boolean getScrollableTracksViewportHeight() {
+//			return false;
+//		}
+//
+//		@Override
+//		public boolean getScrollableTracksViewportWidth() {
+//			return false;
+//		}
+//
+//		@Override
+//		public int getScrollableUnitIncrement(Rectangle visibleRect,
+//				int orientation, int direction) {
+//			return 20;
+//		}
+//		
+//	}
 }

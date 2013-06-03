@@ -19,6 +19,8 @@ public class NativeDialogsDemo extends JFrame {
 	private OpenDialogPanel openDialogPanel;
 	
 	private MessageDialogPanel messageDialogPanel;
+	
+	private FontDialogPanel fontDialogPanel;
 
 	public NativeDialogsDemo() {
 		super("Native Dialogs Demo");
@@ -39,6 +41,9 @@ public class NativeDialogsDemo extends JFrame {
 		
 		messageDialogPanel = new MessageDialogPanel();
 		tabPane.addTab("Message Dialog", messageDialogPanel);
+		
+		fontDialogPanel = new FontDialogPanel();
+		tabPane.addTab("Font Dialog", fontDialogPanel);
 		
 		setLayout(new BorderLayout());
 		add(tabPane, BorderLayout.CENTER);

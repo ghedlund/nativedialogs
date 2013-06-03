@@ -37,6 +37,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 import ca.phon.ui.dialogs.JFontDialog;
 
@@ -784,7 +785,7 @@ public class NativeDialogs {
 	 * 
 	 * @param properties
 	 */
-	private native static void nativeShowFontSelectionDialog(FontDialogProperties properties);
+	private native static void nativeShowFontDialog(FontDialogProperties properties);
 	
 	private static void swingShowFontSelectionDialog(FontDialogProperties properties) {
 		final Runnable task = new ShowFontSelectionTask(properties);
@@ -808,26 +809,29 @@ public class NativeDialogs {
 		
 		@Override
 		public void run() {
-//			JFrame frame = (parentWindow instanceof JFrame ? (JFrame)parentWindow : null);
-//			
-//			// create a new dialog and display
-//			final JFontDialog fontDialog = new JFontDialog(frame, true);
-////			fontDialog.pack();
-//			fontDialog.setSize(new Dimension(500, 400));
-//			fontDialog.setResizable(false);
-//			fontDialog.setVisible(true);
-//			
-//			NativeDialogEvent evt = new NativeDialogEvent();
-//			
-//			if(fontDialog.isOk()) {
-//				evt.setDialogResult(NativeDialogEvent.OK_OPTION);
-//				evt.setDialogData(fontDialog.getSelectedFont());
-//			} else {
-//				evt.setDialogData(null);
-//				evt.setDialogResult(NativeDialogEvent.CANCEL_OPTION);
-//			}
-//			
-//			listener.nativeDialogEvent(evt);
+			Font f = properties.createFont();
+			f = (f != null ? f : UIManager.getFont("TextPane.font"));
+			final JFontDialog fontDialog = new JFontDialog(
+					(properties.getParentWindow() != null && properties.getParentWindow() instanceof JFrame ? (JFrame)properties.getParentWindow() : null), true);
+			fontDialog.setSize(new Dimension(500, 400));
+			if(properties.getTitle() != null)
+				fontDialog.setTitle(properties.getTitle());
+			if(properties.getParentWindow() != null)
+				fontDialog.setLocationRelativeTo(properties.getParentWindow());
+			if(f != null)
+				fontDialog.setSelectedFont(f);
+			fontDialog.setVisible(true);
+			
+			final NativeDialogEvent evt = new NativeDialogEvent();
+			if(fontDialog.isOk()) {
+				evt.setDialogResult(NativeDialogEvent.OK_OPTION);
+				evt.setDialogData(fontDialog.getSelectedFont());
+			} else {
+				evt.setDialogData(null);
+				evt.setDialogResult(NativeDialogEvent.CANCEL_OPTION);
+			}
+			
+			properties.getListener().nativeDialogEvent(evt);
 		}
 				
 	}
@@ -839,9 +843,23 @@ public class NativeDialogs {
 	 */
 	public static Font showFontDialog(FontDialogProperties properties) {
 		Font retVal = null;
-		
-		
-		
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = new MessageWaitListener();
+			properties.setListener(mwl);
+		}
+		if(libraryFound && !properties.isForceUseSwing()) {
+			nativeShowFontDialog(properties);
+		} else {
+			swingShowFontSelectionDialog(properties);
+		}
+		if(!properties.isRunAsync()) {
+			final MessageWaitListener mwl = (MessageWaitListener)properties.getListener();
+			mwl.waitLoop();
+			
+			final NativeDialogEvent evt = mwl.getEvent();
+			if(evt.getDialogResult() == NativeDialogEvent.OK_OPTION)
+				retVal = (Font)evt.getDialogData();
+		}
 		return retVal;
 	}
 	

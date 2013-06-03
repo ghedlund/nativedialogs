@@ -20,6 +20,7 @@ package ca.phon.ui.dialogs;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -49,7 +50,7 @@ public class JFontDialog extends JDialog {
 		this(frame, modal, UIManager.getDefaults().getFont("TextPane.font"));
 	}
 	
-	public JFontDialog(JFrame frame, boolean modal, Font f) {
+	private JFontDialog(JFrame frame, boolean modal, Font f) {
 		super(frame, modal);
 		
 		init(f);
@@ -57,6 +58,10 @@ public class JFontDialog extends JDialog {
 
 	public Font getSelectedFont() {
 		return fontPanel.getSelectedFont();
+	}
+	
+	public void setSelectedFont(Font f) {
+		fontPanel.setSelectedFont(f);
 	}
 	
 	private void init(Font f) {
@@ -85,8 +90,9 @@ public class JFontDialog extends JDialog {
 		});
 		
 		final JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-		buttonBar.add(okButton);
 		buttonBar.add(cancelButton);
+		buttonBar.add(okButton);
+		getRootPane().setDefaultButton(okButton);
 		
 		setLayout(new BorderLayout());
 		add(fontPanel, BorderLayout.CENTER);
