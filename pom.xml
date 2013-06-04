@@ -8,8 +8,39 @@
   <name>Native Dialogs</name>
   <description>Native dialogs for Java with fallback to Swing.</description>
 
-  <dependencies>
-  </dependencies>
+  <developers>
+    <developer>
+      <id>ghedlund</id>
+      <name>Greg Hedlund</name>
+      <email>greg.hedlund@gmail.com</email>
+      <timezone>-3.5</timezone>
+    </developer>
+  </developers>
+
+  <contributors> </contributors>
+
+  <licenses>
+    <license>
+      <name>GNU GPL v3.0+</name>
+      <distribution>repo</distribution>
+      <url>http://www.gnu.org/copyleft/gpl.html</url>
+    </license>
+  </licenses>
+
+  <dependencies> </dependencies>
+
+  <distributionManagement>
+    <repository>
+      <id>phon.ca-release</id>
+      <name>Phon Release</name>
+      <url>https://www.phon.ca/artifacts/libs-release-local</url>
+    </repository>
+    <snapshotRepository>
+      <id>phon.ca-snapshot</id>
+      <name>Phon Snapshot</name>
+      <url>https://www.phon.ca/artifacts/libs-snapshot-local</url>
+    </snapshotRepository>
+  </distributionManagement>
 
   <build>
     <plugins>
@@ -42,7 +73,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -52,8 +83,20 @@
           <sourceEncoding>UTF-8</sourceEncoding>
         </configuration>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+             <manifest>
+                 <mainClass>ca.phon.ui.nativedialogs.demo.NativeDialogsDemo</mainClass>
+             </manifest>
+           </archive>
+        </configuration>
+      </plugin>
     </plugins>
-    
+
     <pluginManagement>
       <plugins>
         <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
@@ -78,7 +121,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore></ignore>
+                    <ignore/>
                   </action>
                 </pluginExecution>
               </pluginExecutions>
