@@ -3,11 +3,11 @@ CC=clang++
 LD=clang++
 
 CFLAGS=-g -c -mmacosx-version-min=10.6 -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
-	-fPIC -I/System/Library/Frameworks/JavaVM.framework/Versions/A/Headers -I../../../target/generated-sources/cpp/include \
-	-F/System/Library/Frameworks/JavaVM.framework/Frameworks -I/System/Library/Frameworks/JavaVM.framework/Frameworks/JavaNativeFoundation.framework/Versions/A/Headers
+	-fPIC -I/System/Library/Frameworks/JavaVM.framework/Headers -I../../../target/generated-sources/cpp/include \
+	-F/System/Library/Frameworks/JavaVM.framework/Frameworks -I/System/Library/Frameworks/JavaVM.framework/Frameworks/JavaNativeFoundation.framework/Headers
 	
-OBJC_CFLAGS=-I/System/Library/Frameworks/Foundation.framework/Versions/A/Headers \
-	-I/System/Library/Frameworks/Cocoa.framework/Versions/A/Headers
+OBJC_CFLAGS=-I/System/Library/Frameworks/Foundation.framework/Headers \
+	-I/System/Library/Frameworks/Cocoa.framework/Headers
 
 BINDIR=../../../target/cpp/objects
 
@@ -17,7 +17,9 @@ LIB_OBJECTS=$(patsubst %.cpp, $(BINDIR)/%.o, $(LIB_SOURCES))
 OBJC_SOURCES=$(wildcard mac/*.mm)
 OBJC_OBJECTS=$(patsubst mac/%.mm, $(BINDIR)/%.o, $(OBJC_SOURCES))
 
-LDFLAGS=-shared -lobjc -framework Foundation -framework Cocoa -framework JavaVM -F/System/Library/Frameworks/JavaVM.framework/Frameworks -framework JavaNativeFoundation
+LDFLAGS=-shared -lobjc -framework JavaVM -framework Foundation -framework Cocoa \
+	-F/System/Library/Frameworks/JavaVM.framework/Frameworks -framework JavaNativeFoundation \
+	-mmacosx-version-min=10.6
 
 LIBPREFIX=lib
 LIBSUFFIX=

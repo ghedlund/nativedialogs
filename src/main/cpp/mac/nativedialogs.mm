@@ -5,7 +5,6 @@
 #import <Cocoa/Cocoa.h>
 
 #import <JavaVM/jni.h>
-#import <JavaVM/jawt.h>
 #import <JavaVM/jawt_md.h>
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 
@@ -23,6 +22,8 @@
  */
 // Given a Java component, return a NSWindow*
 NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
+	JNF_COCOA_ENTER(env);
+
 	JAWT awt;
 	JAWT_DrawingSurface* ds;
 	JAWT_DrawingSurfaceInfo* dsi;
@@ -40,8 +41,8 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 	assert(ds != NULL);
     
 	// Lock the drawing surface
-	lock = ds->Lock(ds);
-	assert((lock & JAWT_LOCK_ERROR) == 0);
+	//lock = ds->Lock(ds);
+	//assert((lock & JAWT_LOCK_ERROR) == 0);
     
 	// Get the drawing surface info
 	dsi = ds->GetDrawingSurfaceInfo(ds);
@@ -55,13 +56,15 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 	// Free the drawing surface info
 	ds->FreeDrawingSurfaceInfo(dsi);
 	// Unlock the drawing surface
-	ds->Unlock(ds);
+	//ds->Unlock(ds);
     
 	// Free the drawing surface
 	awt.FreeDrawingSurface(ds);
 
 	// Get the view's parent window; this is what we need to show a sheet
 	return [view window];
+	
+	JNF_COCOA_EXIT(env)
 }
 
 /**
@@ -272,7 +275,10 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 		        	data = pathArray;
 		        }
 		    }
-		    
+
+			[openPanel orderOut:nil];
+			[openPanel release];
+			
 	    	jobject dlgevt = NULL;
 		    if(data != nil) {
 		    	dlgevt = createDialogResult(env, RESULT_OK, data);
@@ -284,7 +290,6 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 			
 			env->DeleteGlobalRef(gListener);
 		    
-			[openPanel release];
 		};
 		
 		if(parentWindow) {
@@ -395,12 +400,14 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 		    } else {
 		    	dlgevt = createDialogResult(env, RESULT_CANCEL, NULL);
 		    }
+
+			[savePanel orderOut:nil];
+			[savePanel release];
 		
 			sendDialogResult(env, gListener, dlgevt);
 			
 			env->DeleteGlobalRef(gListener);
 		    
-			[savePanel release];
 		};
 		
 		if(parentWindow) {
@@ -455,11 +462,14 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 	if([alert showsSuppressionButton]) { 
 		data = ToBool(env, [[alert suppressionButton] state] == NSOnState );
 	}
-	
+
+	[[alert window] orderOut:nil];	
+	[alert release];
+
 	[self sendEventForNSAlertReturn:returnCode jnienv:env dialogListener:gListener data:data];
 	
 	env->DeleteGlobalRef(gListener);
-	[alert release];
+	
 	[self release];
 }
 
@@ -502,6 +512,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowMes
 	NSString *suppressionMessage = (suppressionMessageObj ? JNFJavaToNSString(env, (jstring)suppressionMessageObj) : nil);
 	
 	jobject listener = GetProperty(env, props, @"listener");
+	jobject gListener = env->NewGlobalRef(listener);
 	
 	NSMutableArray *nsOptions = [[NSMutableArray alloc] init];
 	int count = env->GetArrayLength(options);
@@ -511,7 +522,6 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowMes
 		[nsOptions addObject:btnTxt];
 	}
 	
-	jobject gListener = env->NewGlobalRef(listener);
 	
 	AlertFinished *alertListener = 
 		[[[AlertFinished alloc] init] retain];
@@ -549,11 +559,16 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowMes
 			jobject data = NULL;
 			if([alert showsSuppressionButton]) { 
 				data = ToBool(env, [[alert suppressionButton] state] == NSOnState );
+			} else {
+				data = ToBool(env, false);
 			}
+
+			[[alert window] orderOut:nil];
+			[alert release];
+
 			[alertListener sendEventForNSAlertReturn:alertResult jnienv:env dialogListener:gListener data:data];
 			
 			env->DeleteGlobalRef(gListener);
-			[alert release];
 			[alertListener release];
 		}
 	};

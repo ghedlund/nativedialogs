@@ -3,12 +3,15 @@ package ca.phon.ui.nativedialogs;
 import java.awt.Window;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * Base class for native dialogs configuration.
  */
 public class NativeDialogProperties extends HashMap<String, Object> {
 	
+	final private static Logger LOGGER = Logger.getLogger(NativeDialogProperties.class.getName());
+
 	private static final long serialVersionUID = 9063069448733408216L;
 
 	/**
@@ -42,10 +45,12 @@ public class NativeDialogProperties extends HashMap<String, Object> {
 	 */
 	public NativeDialogProperties() {
 		super();
+		setListener(new DefaultNativeDialogListener());
 	}
 	
 	public NativeDialogProperties(Map<String, Object> props) {
 		super(props);
+		setListener(new DefaultNativeDialogListener());
 	}
 	
 	public boolean isRunAsync() {
@@ -61,7 +66,7 @@ public class NativeDialogProperties extends HashMap<String, Object> {
 	}
 	
 	public NativeDialogListener getListener() {
-		NativeDialogListener retVal = null;
+		NativeDialogListener retVal = new DefaultNativeDialogListener();
 		if(get(LISTENER) != null) {
 			retVal = (NativeDialogListener)get(LISTENER);
 		}
@@ -107,4 +112,5 @@ public class NativeDialogProperties extends HashMap<String, Object> {
 	public void setForceUseSwing(boolean forceUseSwing) {
 		put(FORCE_USE_SWING, forceUseSwing);
 	}
+	
 }
