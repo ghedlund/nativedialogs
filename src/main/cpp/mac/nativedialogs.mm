@@ -27,12 +27,13 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 	JAWT awt;
 	JAWT_DrawingSurface* ds;
 	JAWT_DrawingSurfaceInfo* dsi;
-	JAWT_MacOSXDrawingSurfaceInfo* dsi_mac;
+	//JAWT_MacOSXDrawingSurfaceInfo* dsi_mac;
+	id<JAWT_SurfaceLayers> dsi_mac;
 	jboolean result;
 	jint lock;
     
 	// Get the AWT
-	awt.version = JAWT_VERSION_1_4;
+	awt.version = JAWT_VERSION_1_4 | JAWT_MACOSX_USE_CALAYER;
 	result = JAWT_GetAWT(env, &awt);
 	assert(result != JNI_FALSE);
     
@@ -48,10 +49,24 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 	dsi = ds->GetDrawingSurfaceInfo(ds);
     
 	// Get the platform-specific drawing info
-	dsi_mac = (JAWT_MacOSXDrawingSurfaceInfo*)dsi->platformInfo;
+	dsi_mac = (id<JAWT_SurfaceLayers>)dsi->platformInfo;
     
 	// Get the NSView corresponding to the component that was passed
-	NSView *view = dsi_mac->cocoaViewRef;
+	//NSView *view = dsi_mac->cocoaViewRef;
+	
+	CALayer *windowLayer = [dsi_mac windowLayer];
+	NSWindow *retVal = nil;
+	NSArray *windowList = [NSApp windows];
+	for(int i = 0; i < [windowList count]; i++) {
+		NSWindow *window = (NSWindow*)[windowList objectAtIndex:i];
+		CALayer *clayer = [[window contentView] layer];
+		if(clayer != nil) {
+			if(clayer == [windowLayer superlayer]) {
+				retVal = window;
+				break;
+			}
+		}
+	}
 
 	// Free the drawing surface info
 	ds->FreeDrawingSurfaceInfo(dsi);
@@ -62,7 +77,7 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 	awt.FreeDrawingSurface(ds);
 
 	// Get the view's parent window; this is what we need to show a sheet
-	return [view window];
+	return retVal;
 	
 	JNF_COCOA_EXIT(env)
 }

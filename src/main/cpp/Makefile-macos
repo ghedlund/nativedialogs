@@ -2,11 +2,13 @@
 CC=clang++
 LD=clang++
 
+JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_25.jdk/Contents/Home
+
 CFLAGS=-g -c -mmacosx-version-min=10.6 -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
-	-fPIC -I/System/Library/Frameworks/JavaVM.framework/Headers -I../../../target/generated-sources/cpp/include \
+	-fPIC -I$(JAVA_HOME)/include -I/System/Library/Frameworks/JavaVM.framework/Headers -I../../../target/generated-sources/cpp/include \
 	-F/System/Library/Frameworks/JavaVM.framework/Frameworks -I/System/Library/Frameworks/JavaVM.framework/Frameworks/JavaNativeFoundation.framework/Headers
 	
-OBJC_CFLAGS=-I/System/Library/Frameworks/Foundation.framework/Headers \
+OBJC_CFLAGS=-I$(JAVA_HOME)/include -I/System/Library/Frameworks/Foundation.framework/Headers \
 	-I/System/Library/Frameworks/Cocoa.framework/Headers
 
 BINDIR=../../../target/cpp/objects
@@ -18,7 +20,7 @@ LIB_OBJECTS=$(patsubst %.cpp, $(BINDIR)/%.o, $(LIB_SOURCES))
 OBJC_SOURCES=$(wildcard mac/*.mm)
 OBJC_OBJECTS=$(patsubst mac/%.mm, $(BINDIR)/%.o, $(OBJC_SOURCES))
 
-LDFLAGS=-shared -lobjc -framework JavaVM -framework Foundation -framework Cocoa \
+LDFLAGS=-shared -lobjc -L$(JAVA_HOME)/jre/lib -ljawt -framework Foundation -framework Cocoa \
 	-F/System/Library/Frameworks/JavaVM.framework/Frameworks -framework JavaNativeFoundation \
 	-mmacosx-version-min=10.6
 
