@@ -10,6 +10,7 @@ OBJC_CFLAGS=-I/System/Library/Frameworks/Foundation.framework/Headers \
 	-I/System/Library/Frameworks/Cocoa.framework/Headers
 
 BINDIR=../../../target/cpp/objects
+INSTALL_PATH=../../../target/classes/META-INF/lib/macos
 
 LIB_SOURCES=$(wildcard *.cpp)
 LIB_OBJECTS=$(patsubst %.cpp, $(BINDIR)/%.o, $(LIB_SOURCES))
@@ -27,7 +28,6 @@ LIBEXTENSION=jnilib
 LIBSHORTNAME=nativedialogs
 LIBNAME=$(BINDIR)/$(LIBPREFIX)$(LIBSHORTNAME)$(LIBSUFFIX).$(LIBEXTENSION)
 
-INSTALL_PATH=../../../target/classes/META-INF/lib/macos
 
 # targets
 all:	$(BINDIR) $(LIB_SOURCES) $(OBJC_SOURCES) $(LIBNAME)	
