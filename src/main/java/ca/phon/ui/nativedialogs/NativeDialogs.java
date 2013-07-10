@@ -215,7 +215,8 @@ public class NativeDialogs {
 			
 			if(evt.getDialogResult() == NativeDialogEvent.OK_OPTION) {
 				if(properties.isAllowMultipleSelection()) {
-					retVal = (List<String>)evt.getDialogData();
+					final String[] pathList = (String[])evt.getDialogData();
+					retVal = Arrays.asList(pathList);
 				} else {
 					retVal = Arrays.asList((String)evt.getDialogData());
 				}
