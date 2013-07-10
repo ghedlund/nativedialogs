@@ -2,9 +2,10 @@
 CC=clang++
 LD=clang++
 
-JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_25.jdk/Contents/Home
+JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home
+SYS_ROOT=/Developer/SDKs/MacOSX10.6.sdk/
 
-CFLAGS=-g -c -mmacosx-version-min=10.6 -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
+CFLAGS=-g -c -mmacosx-version-min=10.6 -isysroot $(SYS_ROOT) -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
 	-fPIC -I$(JAVA_HOME)/include -I/System/Library/Frameworks/JavaVM.framework/Headers -I../../../target/generated-sources/cpp/include \
 	-F/System/Library/Frameworks/JavaVM.framework/Frameworks -I/System/Library/Frameworks/JavaVM.framework/Frameworks/JavaNativeFoundation.framework/Headers
 	
@@ -20,7 +21,7 @@ LIB_OBJECTS=$(patsubst %.cpp, $(BINDIR)/%.o, $(LIB_SOURCES))
 OBJC_SOURCES=$(wildcard mac/*.mm)
 OBJC_OBJECTS=$(patsubst mac/%.mm, $(BINDIR)/%.o, $(OBJC_SOURCES))
 
-LDFLAGS=-shared -lobjc -L$(JAVA_HOME)/jre/lib -ljawt -framework Foundation -framework Cocoa \
+LDFLAGS=-shared -lobjc -L$(JAVA_HOME)/../Libraries -ljawt -framework Foundation -framework Cocoa \
 	-F/System/Library/Frameworks/JavaVM.framework/Frameworks -framework JavaNativeFoundation \
 	-mmacosx-version-min=10.6
 

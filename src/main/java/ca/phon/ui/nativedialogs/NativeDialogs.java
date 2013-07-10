@@ -1144,6 +1144,7 @@ public class NativeDialogs {
 		final FileFilter filter = new FileFilter(filters);
 		if(defaultExt != null)
 			filter.setDefaultExtension(defaultExt);
+		props.setFileFilter(filter);
 		props.setTitle(title);
 		
 		return showSaveDialog(props);
