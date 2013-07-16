@@ -168,9 +168,14 @@ public class NativeDialogs {
 				Object evtData = null;
 				
 				if(properties.isAllowMultipleSelection()) {
-					evtData = chooser.getSelectedFiles();
+					final File[] selectedFiles = chooser.getSelectedFiles();
+					final String[] selectedPaths = new String[selectedFiles.length];
+					for(int i = 0; i < selectedFiles.length; i++) {
+						selectedPaths[i] = selectedFiles[i].getAbsolutePath();
+					}
 				} else {
-					evtData = chooser.getSelectedFile();
+					evtData = 
+							(chooser.getSelectedFile() != null ? chooser.getSelectedFile().getAbsolutePath() : null);
 				}
 				
 				evt = new NativeDialogEvent(NativeDialogEvent.OK_OPTION, evtData);
@@ -508,7 +513,7 @@ public class NativeDialogs {
 				int rVal = NativeDialogEvent.OK_OPTION;
 				if(selectedFile.exists()) {
 					rVal = showYesNoDialogBlocking(properties.getParentWindow(), "", "File exists", "Overwrite file '" + selectedFile.getAbsolutePath() + "'?");
-					rVal = (rVal == NativeDialogEvent.YES_OPTION ? NativeDialogEvent.OK_OPTION : NativeDialogEvent.CANCEL_OPTION);
+					rVal = (rVal == 0 ? NativeDialogEvent.OK_OPTION : NativeDialogEvent.CANCEL_OPTION);
 				}
 				
 				evt = new NativeDialogEvent(rVal, selectedFile.getAbsolutePath());
