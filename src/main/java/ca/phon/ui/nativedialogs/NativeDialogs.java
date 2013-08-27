@@ -1276,6 +1276,7 @@ public class NativeDialogs {
 		props.setFontSize(fontSize);
 		props.setBold((fontStyle & Font.BOLD) != 0);
 		props.setItalic((fontStyle & Font.ITALIC) != 0);
+		props.setRunAsync(false);
 		return showFontDialog(props);
 	}
 	
