@@ -39,7 +39,9 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 #endif
 
 	result = JAWT_GetAWT(env, &awt);
-	assert(result != JNI_FALSE);
+	if(result == JNI_FALSE) 
+		return NULL;
+	//assert(result != JNI_FALSE);
     
 	// Get the drawing surface
 	ds = awt.GetDrawingSurface(env, window);
