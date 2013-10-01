@@ -4,8 +4,8 @@
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
 
-#import <JavaVM/jni.h>
-#import <JavaVM/jawt_md.h>
+#import <jni.h>
+#import <jawt_md.h>
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 
 #include "../jniload.h"
@@ -41,7 +41,6 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 	result = JAWT_GetAWT(env, &awt);
 	if(result == JNI_FALSE) 
 		return NULL;
-	//assert(result != JNI_FALSE);
     
 	// Get the drawing surface
 	ds = awt.GetDrawingSurface(env, window);
@@ -60,7 +59,7 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 	dsi_mac = (id<JAWT_SurfaceLayers>)dsi->platformInfo;
     
     CALayer *windowLayer = [dsi_mac windowLayer];
-	NSWindow *retVal = nil;
+	retVal = nil;
 	NSArray *windowList = [NSApp windows];
 	for(int i = 0; i < [windowList count]; i++) {
 		NSWindow *window = (NSWindow*)[windowList objectAtIndex:i];

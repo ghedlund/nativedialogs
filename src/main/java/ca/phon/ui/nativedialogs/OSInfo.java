@@ -43,9 +43,9 @@ public class OSInfo {
 	 *  is set <code>false</code> otherwise.
 	 */
 	public static boolean isMacOs() {
-		String mrjVersion = System.getProperty("mrj.version");
+		String osname = System.getProperty("os.name");
 		
-		if(mrjVersion != null)
+		if(osname.toLowerCase().indexOf("mac") >= 0)
 			return true;
 		else
 			return false;
