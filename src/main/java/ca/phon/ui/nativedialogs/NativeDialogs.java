@@ -23,6 +23,7 @@ import java.awt.Font;
 import java.awt.Window;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
@@ -173,6 +174,7 @@ public class NativeDialogs {
 					for(int i = 0; i < selectedFiles.length; i++) {
 						selectedPaths[i] = selectedFiles[i].getAbsolutePath();
 					}
+					evtData = selectedPaths;
 				} else {
 					evtData = 
 							(chooser.getSelectedFile() != null ? chooser.getSelectedFile().getAbsolutePath() : null);
@@ -221,7 +223,7 @@ public class NativeDialogs {
 			if(evt.getDialogResult() == NativeDialogEvent.OK_OPTION) {
 				if(properties.isAllowMultipleSelection()) {
 					final String[] pathList = (String[])evt.getDialogData();
-					retVal = Arrays.asList(pathList);
+					retVal = (pathList != null ? Arrays.asList(pathList) : new ArrayList<String>());
 				} else {
 					retVal = Arrays.asList((String)evt.getDialogData());
 				}
