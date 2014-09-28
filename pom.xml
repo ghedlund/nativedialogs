@@ -4,10 +4,10 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>ca.phon</groupId>
   <artifactId>native-dialogs</artifactId>
-  <version>3-SNAPSHOT</version>
   <name>Native Dialogs</name>
   <description>Native dialogs for Java with fallback to Swing.</description>
-
+  <version>5</version>
+  
   <developers>
     <developer>
       <id>ghedlund</id>
@@ -131,4 +131,5 @@
       </plugins>
     </pluginManagement>
   </build>
+  
 </project>
