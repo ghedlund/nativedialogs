@@ -2,9 +2,7 @@
 CC=clang++
 LD=clang++
 
-SYS_ROOT=/Developer/SDKs/MacOSX10.6.sdk/
-
-CFLAGS=-g -c -mmacosx-version-min=10.6 -isysroot $(SYS_ROOT) -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
+CFLAGS=-g -c -mmacosx-version-min=10.7 -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
 	-fPIC -I$(JAVA_HOME)/include -I/System/Library/Frameworks/JavaVM.framework/Headers -I../../../target/generated-sources/cpp/include \
 	-F/System/Library/Frameworks/JavaVM.framework/Frameworks -I/System/Library/Frameworks/JavaVM.framework/Frameworks/JavaNativeFoundation.framework/Headers
 	
