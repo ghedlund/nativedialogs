@@ -20,7 +20,7 @@ OBJC_OBJECTS=$(patsubst mac/%.mm, $(BINDIR)/%.o, $(OBJC_SOURCES))
 
 LDFLAGS=-shared -lobjc -L$(JAVA_HOME)/jre/lib -ljawt -framework Foundation -framework Cocoa \
 	-F/System/Library/Frameworks/JavaVM.framework/Frameworks -framework JavaNativeFoundation \
-	-mmacosx-version-min=10.6
+	-mmacosx-version-min=10.7
 
 LIBPREFIX=lib
 LIBSUFFIX=

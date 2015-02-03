@@ -65,7 +65,7 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 		NSWindow *window = (NSWindow*)[windowList objectAtIndex:i];
 		CALayer *clayer = [[window contentView] layer];
 		if(clayer != nil) {
-			if(clayer == [windowLayer superlayer]) {
+			if(clayer == windowLayer || clayer == [windowLayer superlayer]) {
 				retVal = window;
 				break;
 			}
