@@ -109,6 +109,7 @@ public class NativeDialogPanel extends JPanel {
 	
 	public NativeDialogProperties getProperties() {
 		final NativeDialogProperties retVal = new NativeDialogProperties();
+		retVal.setRunAsync(false);
 		retVal.setTitle(titleField.getText());
 		retVal.setListener(listener);
 		retVal.setForceUseSwing(useSwingBox.isSelected());

@@ -197,7 +197,6 @@ public class NativeDialogs {
 	 * @return the list of selected files/folders if properties.isRunAsync()
 	 *  is <code>false</code>, <code>null</code> otherwise
 	 */
-	@SuppressWarnings("unchecked")
 	public static List<String> showOpenDialog(OpenDialogProperties properties) {
 		List<String> retVal = null;
 		if(!properties.isRunAsync()) {

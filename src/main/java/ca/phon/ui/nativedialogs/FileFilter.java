@@ -104,6 +104,10 @@ public class FileFilter extends javax.swing.filechooser.FileFilter {
 		subFilters.remove(subFilter);
 	}
 	
+	public List<FileFilter> getSubFilters() {
+		return this.subFilters;
+	}
+	
 	@Override
 	public boolean accept(File f) {
 		
@@ -169,4 +173,5 @@ public class FileFilter extends javax.swing.filechooser.FileFilter {
 		}
 		return retVal;
 	}
+	
 }

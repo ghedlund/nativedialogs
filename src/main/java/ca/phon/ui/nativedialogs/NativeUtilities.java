@@ -130,6 +130,10 @@ public class NativeUtilities {
 		} else if(isWindows()) {
 			lib = libName + ".dll";
 			folder += "win32";
+			
+			String arch = System.getProperty("os.arch");
+			if(arch.equals("amd64")) arch = "x64";
+			folder += "-" + arch;
 		}
 		
 		return folder + "/" + lib;
