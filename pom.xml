@@ -58,15 +58,6 @@
               <tasks>
                 <property name="javah.classpath" refid="maven.compile.classpath"/>
                 <ant antfile="${basedir}/nativedialogs-javah.xml"/>
-                <exec executable="make" dir="src/main/cpp" failonerror="true">
-                  <arg value="-f"/>
-                  <arg value="Makefile-macos"/>
-                </exec>
-                <exec executable="make" dir="src/main/cpp" failonerror="true">
-                  <arg value="-f"/>
-                  <arg value="Makefile-macos"/>
-                  <arg value="install"/>
-                </exec>
               </tasks>
             </configuration>
           </execution>
