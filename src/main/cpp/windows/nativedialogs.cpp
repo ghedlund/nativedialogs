@@ -132,17 +132,16 @@ void GetAllowedFiletypes(JNIEnv* env, jobject filefilter, COMDLG_FILTERSPEC *fil
 
 		env->ReleaseStringUTFChars(extension, szExt);
 	}
-	extensions.append("\0\0");
 
 	std::wstring wDesc = ToWStr(description);
-	wchar_t *pszName = (wchar_t*)malloc(sizeof(wchar_t)*(wDesc.size()+1));
-	ZeroMemory(pszName, wDesc.size() + 1);
-	swprintf(pszName, wDesc.size()+1, L"%s", wDesc.c_str());
+	wchar_t *pszName = (wchar_t*)malloc(sizeof(wchar_t)*wDesc.size()+1);
+	memset( pszName, L'\0', wDesc.size() + 1 );
+	swprintf(pszName, L"%s\0", wDesc.c_str() );
 
 	std::wstring wSpec = ToWStr(extensions);
-	wchar_t *pszSpec = (wchar_t*)malloc(sizeof(wchar_t)*(wSpec.size()+1));
-	ZeroMemory(pszSpec, wDesc.size() + 1);
-	swprintf(pszSpec, wDesc.size()+1, L"%s", wSpec.c_str());
+	wchar_t *pszSpec = (wchar_t*)malloc(sizeof(wchar_t)*(wSpec.size()+2));
+	wmemset( pszSpec, L'\0', wSpec.size() + 2);
+	wmemcpy( pszSpec, wSpec.c_str(), wSpec.size());
 
 	filterSpec->pszName = pszName;
 	filterSpec->pszSpec = pszSpec;
