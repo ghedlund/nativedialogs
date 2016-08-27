@@ -4,9 +4,9 @@
 #include <shlobj.h>
 #include <shobjidl.h>
 
-#include "jniload.h"
+#include "../jniload.h"
 #include "nativedialogs.h"
-#include "utils.h"
+#include "../utils.h"
 
 #include <string>
 
