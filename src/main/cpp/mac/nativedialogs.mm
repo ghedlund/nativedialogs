@@ -9,13 +9,8 @@
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 
 #include "../jniload.h"
+#include "../utils.h"
 #include "nativedialogs.h"
-
-#define RESULT_OK 0x01
-#define RESULT_CANCEL 0x02
-#define ANSWER_YES 0x01
-#define ANSWER_NO 0x03
-#define RESULT_UNKNOWN 0x04
 
 /**
  * Get Cocoa window references
@@ -96,33 +91,6 @@ NSWindow *convertToNSWindow(JNIEnv *env, jobject window) {
 }
 
 /**
- * Create a new dialog result
- */
-jobject createDialogResult(JNIEnv *env, int result, jobject data) {
-	const char *szClassName = "ca/phon/ui/nativedialogs/NativeDialogEvent";
-	const char *szCstrSig = "(ILjava/lang/Object;)V";
-	jobject retVal = NULL;
-	
-	jclass NativeDialogEvent = env->FindClass(szClassName);
-	jmethodID cstr = env->GetMethodID(NativeDialogEvent, "<init>", szCstrSig);
-	
-	retVal = env->NewObject(NativeDialogEvent, cstr, result, data);
-	
-	return retVal;
-}
-
-void sendDialogResult(JNIEnv *env, jobject listener, jobject result) {
-	const char *szClassName = "ca/phon/ui/nativedialogs/NativeDialogListener";
-	const char *szMethodName = "nativeDialogEvent";
-	const char *szMethodSig = "(Lca/phon/ui/nativedialogs/NativeDialogEvent;)V";
-	
-	jclass NativeDialogListener = env->FindClass(szClassName);
-	jmethodID methodId = env->GetMethodID(NativeDialogListener, szMethodName, szMethodSig);
-
-	env->CallVoidMethod(listener, methodId, result);
-}
-
-/**
  * Process a list of filters into an NSArray of file extensions
  */
 NSArray *GetAllowedFiletypes(JNIEnv *env, jobject filefilter) {
@@ -156,41 +124,8 @@ NSArray *GetAllowedFiletypes(JNIEnv *env, jobject filefilter) {
 	return retVal;
 }
 
-/**
- * Retrive an object from a property map
- */
- jobject GetProperty(JNIEnv* env, jobject props, jstring propName) {
-	const char *szMethodName = "get";
-	const char *szMethodSig = "(Ljava/lang/Object;)Ljava/lang/Object;";
-	
-	jclass clazz = env->GetObjectClass(props);
-	jmethodID get = env->GetMethodID(clazz, szMethodName, szMethodSig);
-	
-	return env->CallObjectMethod(props, get, propName);
-}
-
 jobject GetProperty(JNIEnv *env, jobject props, NSString *propName) {
 	return GetProperty(env, props, JNFNSToJavaString(env, propName));
-}
-
-bool GetBool(JNIEnv *env, jobject obj) {
-	const char *szMethodName = "booleanValue";
-	const char *szMethodSig = "()Z";
-	
-	jclass clazz = env->GetObjectClass(obj);
-	jmethodID methodID = env->GetMethodID(clazz, szMethodName, szMethodSig);
-	
-	return env->CallBooleanMethod(obj, methodID);
-}
-
-jobject ToBool(JNIEnv* env, bool val) {
-	const char *szClassName = "java/lang/Boolean";
-	const char *szCstrSig = "(Z)V";
-	
-	jclass clazz = env->FindClass(szClassName);
-	jmethodID cstrID = env->GetMethodID(clazz, "<init>", szCstrSig);
-	
-	return env->NewObject(clazz, cstrID, val);
 }
 
 /*
@@ -309,12 +244,12 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 			
 	    	jobject dlgevt = NULL;
 		    if(data != nil) {
-		    	dlgevt = createDialogResult(env, RESULT_OK, data);
+		    	dlgevt = CreateDialogResult(env, RESULT_OK, data);
 		    } else {
-		    	dlgevt = createDialogResult(env, RESULT_CANCEL, NULL);
+		    	dlgevt = CreateDialogResult(env, RESULT_CANCEL, NULL);
 		    }
 		
-			sendDialogResult(env, gListener, dlgevt);
+			SendDialogResult(env, gListener, dlgevt);
 			
 			env->DeleteGlobalRef(gListener);
 		    
@@ -424,15 +359,15 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 	    	jobject dlgevt = NULL;
 		    if(selectedURL != nil) {
 		    	jstring filePath = JNFNSToJavaString(env, [selectedURL path]);
-		    	dlgevt = createDialogResult(env, RESULT_OK, filePath);
+		    	dlgevt = CreateDialogResult(env, RESULT_OK, filePath);
 		    } else {
-		    	dlgevt = createDialogResult(env, RESULT_CANCEL, NULL);
+		    	dlgevt = CreateDialogResult(env, RESULT_CANCEL, NULL);
 		    }
 
 			[savePanel orderOut:nil];
 			[savePanel release];
 		
-			sendDialogResult(env, gListener, dlgevt);
+			SendDialogResult(env, gListener, dlgevt);
 			
 			env->DeleteGlobalRef(gListener);
 		    
@@ -503,8 +438,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 
 - (void)sendEventForNSAlertReturn:(NSInteger)alertReturn jnienv:(JNIEnv*)env dialogListener:(jobject)listener data:(jobject)data {
 	int resultCode = alertReturn - NSAlertFirstButtonReturn;
-	jobject dlgevt = createDialogResult(env, resultCode, data);
-	sendDialogResult(env, listener, dlgevt);
+	jobject dlgevt = CreateDialogResult(env, resultCode, data);
+	SendDialogResult(env, listener, dlgevt);
 }
 
 @end

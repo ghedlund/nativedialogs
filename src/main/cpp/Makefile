@@ -17,5 +17,5 @@ clean:
 
 install:
 	mkdir -p $(INSTALL_PATH)
-	cp -f $(LIBNAME) $(INSTALL_PATH)
+	cp -f $(LIBRARY) $(INSTALL_PATH)
 
