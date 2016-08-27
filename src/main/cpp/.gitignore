@@ -1,0 +1,8 @@
+makefile.defs
+
+*.a
+*.o
+*.dll
+*.jnilib
+*.so
+

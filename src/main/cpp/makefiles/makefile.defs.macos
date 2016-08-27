@@ -1,0 +1,36 @@
+# File: makefile.defs.mingw32
+# System: macos
+#& Greg Hedlund, 26 Aug 2016
+
+LD = clang++
+CXX = clang++
+
+CXXFLAGS = -c -mmacosx-version-min=10.7 -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
+        -fPIC -I$(JAVA_HOME)/include -I/System/Library/Frameworks/JavaVM.framework/Headers -I../../../target/generated-sources/cpp/include \
+        -F/System/Library/Frameworks/JavaVM.framework/Frameworks -I/System/Library/Frameworks/JavaVM.framework/Frameworks/JavaNativeFoundation.framework/Headers
+
+OBJC_FLAGS=-I$(JAVA_HOME)/include -I/System/Library/Frameworks/Foundation.framework/Headers \
+        -I/System/Library/Frameworks/Cocoa.framework/Headers
+ 
+LDFLAGS = -shared -lobjc -L$(JAVA_HOME)/jre/lib -ljawt -framework Foundation -framework Cocoa \
+        -F/System/Library/Frameworks/JavaVM.framework/Frameworks -framework JavaNativeFoundation \
+        -mmacosx-version-min=10.7
+
+BINDIR = ../../../target/cpp/objects
+INSTALL_PATH = ../../../target/classes/META-INF/lib/macos
+
+CXX_SOURCES = jniload.cpp utils.cpp
+OBJC_SOURCES = mac/nativedialogs.mm
+OBJC_OBJECTS = $(patsubst mac/%.cpp, $(BINDIR)/%.o, $(OBJC_SOURCES))
+OBJECTS = $(patsubst %.cpp, $(BINDIR)/%.o, $(CXX_SOURCES))
+OBJECTS += $(OBJC_OBJECTS)
+
+LIBPREFIX = lib
+LIBSUFFIX = 
+LIBEXTENSION = jnilib
+LIBSHORTNAME = nativedialogs
+LIBRARY = $(BINDIR)/$(LIBPREFIX)$(LIBSHORTNAME)$(LIBSUFFIX).$(LIBEXTENSION)
+
+$(BINDIR)/%.o:	mac/%.mm
+	$(CXX) $(CXXFLAGS) $(OBJC_FLAGS) $< -o $@
+
