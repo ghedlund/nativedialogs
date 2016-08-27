@@ -2,7 +2,7 @@
 # System: MinGW (32-bit)
 # Greg Hedlund, 26 Aug 2016
 
-MINGW = /mingw64
+MINGW = /mingw32
 JAWT = $(MINGW)/java/lib/jawt.lib
 
 LD = $(MINGW)/bin/g++
@@ -15,7 +15,7 @@ LDFLAGS = -shared -mwindows -Wl,--subsystem,windows
 LIBS = -L$(MINGW)/java/bin -L$(MINGW)/lib -lwinmm -lole32 -luuid -static-libgcc -static-libstdc++ $(JAWT)
 
 BINDIR = ../../../target/cpp/objects
-INSTALL_PATH = ../../../target/classes/META-INF/lib/win32-x64
+INSTALL_PATH = ../resources/META-INF/lib/win32-x86
 
 CXX_SOURCES = jniload.cpp utils.cpp windows/nativedialogs.cpp
 WIN32_OBJECTS = $(patsubst windows/%.cpp, $(BINDIR)/%.o, $(CXX_SOURCES))
