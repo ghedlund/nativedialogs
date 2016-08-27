@@ -1,6 +1,6 @@
 # File: makefile.defs.mingw32
 # System: macos
-#& Greg Hedlund, 26 Aug 2016
+# Greg Hedlund, 26 Aug 2016
 
 LD = clang++
 CXX = clang++
@@ -21,7 +21,7 @@ LDFLAGS = -shared -lobjc -L$(JAVA_HOME)/jre/lib -ljawt -framework Foundation -fr
         -mmacosx-version-min=10.7
 
 BINDIR = ../../../target/cpp/objects
-INSTALL_PATH = ../../../target/classes/META-INF/lib/macos
+INSTALL_PATH = ../resources/META-INF/lib/macos
 
 CXX_SOURCES = jniload.cpp utils.cpp
 OBJC_SOURCES = mac/nativedialogs.mm
