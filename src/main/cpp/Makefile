@@ -9,7 +9,6 @@ $(BINDIR):
 	mkdir -p $(BINDIR)
 
 $(BINDIR)/%.o:	%.cpp
-	echo $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 clean:
