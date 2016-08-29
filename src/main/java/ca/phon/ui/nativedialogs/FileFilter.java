@@ -1,6 +1,6 @@
 /*
- * Phon - An open source tool for research in phonology.
- * Copyright (C) 2008 The Phon Project, Memorial University <http://phon.ling.mun.ca>
+ * This file is part of nativedialogs for java
+ * Copyright (C) 2016 Gregory Hedlund &lt;ghedlund@mun.ca&gt;
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
