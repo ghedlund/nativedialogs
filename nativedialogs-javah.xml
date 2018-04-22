@@ -10,6 +10,7 @@
     <property name="java.src" value="src/main/java"/>
     <property name="nativedialogs.src" value="ca/phon/ui/nativedialogs/NativeDialogs.java"/>
     <property name="output.folder" value="target/generated-sources/cpp/include"/>
+    <property name="temp.classes" value="target/antrun"/>
     <property name="header.filename" value="nativedialogs.h"/>
     <property name="javah.classpath" value="target/classes"/>
 
@@ -18,8 +19,10 @@
 	<exec executable="javac">
 	    <arg value="-h"/>
 	    <arg value="${output.folder}"/>
-            <arg value="-classpath"/>
+	    <arg value="-classpath"/>
             <arg value="${javah.classpath}"/>
+	    <arg value="-d"/>
+	    <arg value="${temp.classes}"/>
 	    <arg value="${java.src}/${nativedialogs.src}"/>
         </exec>
     </target>
