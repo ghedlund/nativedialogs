@@ -46,7 +46,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
-        <version>1.7</version>
+        <version>1.8</version>
         <executions>
           <execution>
             <id>generate-headers</id>
@@ -68,8 +68,8 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
+          <source>9</source>
+          <target>9</target>
           <sourceEncoding>UTF-8</sourceEncoding>
         </configuration>
       </plugin>
@@ -122,5 +122,5 @@
     </pluginManagement>
   </build>
   
-  <version>10</version>
+  <version>11</version>
 </project>

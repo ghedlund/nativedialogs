@@ -7,20 +7,20 @@
 <project name="native-dialogs-headers" default="javah">
     
     <property name="nativedialogs.class" value="ca.phon.ui.nativedialogs.NativeDialogs"/>
+    <property name="java.src" value="src/main/java"/>
+    <property name="nativedialogs.src" value="ca/phon/ui/nativedialogs/NativeDialogs.java"/>
     <property name="output.folder" value="target/generated-sources/cpp/include"/>
     <property name="header.filename" value="nativedialogs.h"/>
     <property name="javah.classpath" value="target/classes"/>
 
     <target name="javah">
         <mkdir dir="${output.folder}"/>
-        <exec executable="javah">
+	<exec executable="javac">
+	    <arg value="-h"/>
+	    <arg value="${output.folder}"/>
             <arg value="-classpath"/>
             <arg value="${javah.classpath}"/>
-            <arg value="-o"/>
-            <arg value="${output.folder}/${header.filename}"/>
-            <arg value="-jni"/>
-            <arg value="-verbose"/>
-            <arg value="${nativedialogs.class}"/>
+	    <arg value="${java.src}/${nativedialogs.src}"/>
         </exec>
     </target>
     
