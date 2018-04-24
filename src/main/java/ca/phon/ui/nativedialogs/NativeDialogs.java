@@ -52,6 +52,8 @@ public class NativeDialogs {
 	
 	private final static Logger LOGGER = Logger.getLogger(NativeDialogs.class.getName());
 	
+	public final static String FORCE_SWING_PROP = NativeDialogs.class.getName() + ".forceSwing";
+	
 	/** The native library name */
 	private final static String _PHONNATIVE_LIB_NAME = "nativedialogs";
 	
@@ -59,11 +61,13 @@ public class NativeDialogs {
 	private static boolean libraryFound = false;
 	
 	static {
-		try {
-			NativeUtilities.loadLibrary(_PHONNATIVE_LIB_NAME);
-			libraryFound = true;
-		} catch (IOException e) {
-			LOGGER.log(Level.WARNING, "Unable to load native dialogs library, will fallback to Swing", e);
+		if(!Boolean.parseBoolean(System.getProperty(FORCE_SWING_PROP, "false"))) {
+			try {
+				NativeUtilities.loadLibrary(_PHONNATIVE_LIB_NAME);
+				libraryFound = true;
+			} catch (IOException e) {
+				LOGGER.log(Level.WARNING, "Unable to load native dialogs library, will fallback to Swing", e);
+			}
 		}
 	}
 	
