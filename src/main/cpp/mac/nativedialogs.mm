@@ -24,7 +24,7 @@
 
 #include "../jniload.h"
 #include "../utils.h"
-#include "nativedialogs.h"
+#include "ca_phon_ui_nativedialogs_NativeDialogs.h"
 
 /**
  * Get Cocoa window references
