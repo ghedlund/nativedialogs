@@ -142,6 +142,10 @@ jobject GetProperty(JNIEnv *env, jobject props, NSString *propName) {
 	return GetProperty(env, props, JNFNSToJavaString(env, propName));
 }
 
+NSView* createAccessoryView(NSString *labelText, NSArray *folderList) {
+    
+}
+
 /*
  * Class:     ca_phon_ui_nativedialogs_NativeDialogs
  * Method:    nativeShowOpenDialog
@@ -195,6 +199,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 	
     void (^block)(void);
     block = ^(void){
+        NSTextField *textField = [[NSTextField alloc] initWithFrame:CMakeRect()];
+        
         NSOpenPanel *openPanel = [[NSOpenPanel openPanel] retain];
         [openPanel setCanCreateDirectories:canCreateFolders];
         [openPanel setShowsHiddenFiles:showHidden];
@@ -268,7 +274,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 			env->DeleteGlobalRef(gListener);
 		    
 		};
-		
+        
 		if(parentWindow) {
 			[openPanel beginSheetModalForWindow:parentWindow completionHandler:handler];
 		} else {
