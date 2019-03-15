@@ -3,16 +3,17 @@
 # Greg Hedlund, 26 Aug 2016
 
 MINGW = /mingw64
-JAWT = $(MINGW)/java/lib/jawt.lib
-
+JAVA_HOME_WIN=/mnt/c/Program\ Files/Java/jdk-11.0.1
+JAWT = $(JAVA_HOME_WIN)/lib/jawt.lib
+ 
 LD = $(MINGW)/bin/g++
-CXX = $(MINGW)/bin/g++ -c -std=gnu++0x -isystem $(MINGW)/include/c++/4.7.0 -isystem $(MINGW)/include  -Wshadow
+CXX = $(MINGW)/bin/g++ -g -c -std=gnu++0x -Wshadow
 
-INCLUDE = -I../../../target/generated-sources/cpp/include -I$(MINGW)/java/include -I$(MINGW)/java/include/win32
-CXXFLAGS = -DWINVER=0x0600 -D_WIN32_WINNT=0x0600 -D_WIN32_IE=0x0600 -DUNICODE -D_FILE_OFFSET_BITS=64 -O1 $(INCLUDE)
+INCLUDE = -I../../../target/generated-sources/cpp/include -I$(JAVA_HOME_WIN)/include -I$(JAVA_HOME_WIN)/include/win32
+CXXFLAGS = -DWINVER=0x0701 -D_WIN32_WINNT=0x0701 -D_WIN32_IE=0x0701 -DUNICODE -D_FILE_OFFSET_BITS=64 -O1 $(INCLUDE)
 LDFLAGS = -shared -mwindows -Wl,--subsystem,windows
 
-LIBS = -L$(MINGW)/java/bin -L$(MINGW)/lib -lwinmm -lole32 -luuid -static-libgcc -static-libstdc++ $(JAWT)
+LIBS = -L$(JAVA_HOME_WIN)/bin -L$(MINGW)/lib -lwinmm -lole32 -luuid -static-libgcc -static-libstdc++ $(JAWT)
 
 BINDIR = ../../../target/cpp/objects
 INSTALL_PATH = ../resources/META-INF/lib/win32-x64

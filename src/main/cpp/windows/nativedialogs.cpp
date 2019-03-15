@@ -151,7 +151,7 @@ void GetAllowedFiletypes(JNIEnv* env, jobject filefilter, COMDLG_FILTERSPEC *fil
 	std::wstring wDesc = ToWStr(description);
 	wchar_t *pszName = (wchar_t*)malloc(sizeof(wchar_t)*wDesc.size()+1);
 	memset( pszName, L'\0', wDesc.size() + 1 );
-	swprintf(pszName, L"%s\0", wDesc.c_str() );
+	swprintf(pszName, wDesc.size(), L"%s\0", wDesc.c_str() );
 
 	std::wstring wSpec = ToWStr(extensions);
 	wchar_t *pszSpec = (wchar_t*)malloc(sizeof(wchar_t)*(wSpec.size()+2));
@@ -188,10 +188,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 	const char *initialFolder = (initialFolderObj ? env->GetStringUTFChars((jstring)initialFolderObj, &isCopy) : NULL);
 	IShellItem *initialFolderItem = NULL;
 	if (initialFolder) {
-		PIDLIST_ABSOLUTE pidl;
 		const std::wstring wInitialFolder = ToWStr(std::string(initialFolder));
-		SHParseDisplayName(wInitialFolder.c_str(), 0, &pidl, SFGAO_FOLDER, 0);
-		SHCreateShellItem(NULL, NULL, pidl, &initialFolderItem);
+		SHCreateItemFromParsingName(wInitialFolder.c_str(), NULL, IID_PPV_ARGS(&initialFolderItem));
 	}
 
 	jobject filenameObj = GetProperty(env, props, env->NewStringUTF("initial_file"));
@@ -259,7 +257,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 			pfd->SetDefaultExtension(ToWStr(std::string(defaultExt)).c_str());
 
 		if (initialFolderItem)
-			pfd->SetDefaultFolder(initialFolderItem);
+			pfd->SetFolder(initialFolderItem);
 
 		FILEOPENDIALOGOPTIONS opts;
 		pfd->GetOptions(&opts);
@@ -395,9 +393,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 	const char *initialFolder = (initialFolderObj ? env->GetStringUTFChars((jstring)initialFolderObj, &isCopy) : NULL);
 	IShellItem *initialFolderItem = NULL;
 	if (initialFolder) {
-		PIDLIST_ABSOLUTE pidl;
-		SHParseDisplayName(ToWStr(std::string(initialFolder)).c_str(), 0, &pidl, SFGAO_FOLDER, 0);
-		SHCreateShellItem(NULL, NULL, pidl, &initialFolderItem);
+		const std::wstring wInitialFolder = ToWStr(std::string(initialFolder));
+		SHCreateItemFromParsingName(wInitialFolder.c_str(), NULL, IID_PPV_ARGS(&initialFolderItem));
 	}
 
 	jobject filenameObj = GetProperty(env, props, env->NewStringUTF("initial_file"));
@@ -455,7 +452,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 			pfd->SetDefaultExtension(ToWStr(std::string(defaultExt)).c_str());
 
 		if (initialFolderItem)
-			pfd->SetDefaultFolder(initialFolderItem);
+			pfd->SetFolder(initialFolderItem);
 
 		FILEOPENDIALOGOPTIONS opts;
 		pfd->GetOptions(&opts);
