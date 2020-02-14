@@ -1319,10 +1319,8 @@ public class NativeDialogs {
 		
 		@Override
 		public void nativeDialogEvent(NativeDialogEvent evt) {
-			if(evt.getDialogResult() != NativeDialogEvent.UNKNOWN) {
-				finished = true;
-				event = evt;
-			}
+			finished = true;
+			event = evt;
 		}
 		
 		public void waitLoop() {
