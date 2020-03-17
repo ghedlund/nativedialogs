@@ -114,7 +114,7 @@ public class FileFilter extends javax.swing.filechooser.FileFilter {
 		boolean retVal = false;
 		
 		for(String validExt:extensions) {
-			if(f.getName().endsWith(validExt)) {
+			if(f.getName().toLowerCase().endsWith(validExt.toLowerCase())) {
 				retVal = true;
 				break;
 			}
