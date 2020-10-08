@@ -29,7 +29,7 @@ public class FileFilter extends javax.swing.filechooser.FileFilter {
 	public final static FileFilter allFilesFilter =
 		new FileFilter("All Files (*.*)", "*.*");
 	public final static FileFilter mediaFilter = 
-		new FileFilter("Media Files", "mkv;avi;flv;wmv;mov;mpg;mpeg;mp4;wav;mp3;aif;aiff;m4a");
+		new FileFilter("Media Files", "mkv;avi;flv;wmv;mov;mpg;mpeg;mp4;wav;mp3;aif;aiff;m4a;aac");
 	public final static FileFilter csvFilter = 
 		new FileFilter("CSV Files (csv;txt)", "csv;txt");
 	public final static FileFilter htmlFilter =
@@ -46,7 +46,7 @@ public class FileFilter extends javax.swing.filechooser.FileFilter {
 		new FileFilter("Javascript Files (*.js)", "js");
 	public final static FileFilter wavFilter = 
 		new FileFilter("Wav files (*.wav)", "wav");
-	
+		
 	/**
 	 * Description (user readable)
 	 */

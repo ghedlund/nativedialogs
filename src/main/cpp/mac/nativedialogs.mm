@@ -143,7 +143,7 @@ jobject GetProperty(JNIEnv *env, jobject props, NSString *propName) {
 }
 
 NSView* createAccessoryView(NSString *labelText, NSArray *folderList) {
-    
+	return NULL;    
 }
 
 /*
@@ -199,8 +199,6 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 	
     void (^block)(void);
     block = ^(void){
-        NSTextField *textField = [[NSTextField alloc] initWithFrame:CMakeRect()];
-        
         NSOpenPanel *openPanel = [[NSOpenPanel openPanel] retain];
         [openPanel setCanCreateDirectories:canCreateFolders];
         [openPanel setShowsHiddenFiles:showHidden];
