@@ -842,8 +842,11 @@ public class NativeDialogs {
 			fontDialog.setSize(new Dimension(500, 400));
 			if(properties.getTitle() != null)
 				fontDialog.setTitle(properties.getTitle());
-			if(properties.getParentWindow() != null)
+			if(properties.getParentWindow() != null) {
 				fontDialog.setLocationRelativeTo(properties.getParentWindow());
+			} else {
+				fontDialog.setLocationByPlatform(true);
+			}
 			if(f != null)
 				fontDialog.setSelectedFont(f);
 			fontDialog.setVisible(true);
