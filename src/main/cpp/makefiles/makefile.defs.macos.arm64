@@ -1,0 +1,38 @@
+# System: macos arm64
+# Greg Hedlund, 26 Aug 2016
+
+LD = clang++
+CXX = clang++
+
+TARGET = arm64-apple-macos11
+
+# change as necessary
+SDK = /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+
+CXXFLAGS = -std=libc++ -c -target $(TARGET) -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
+        -fPIC -I$(JAVA_HOME_AARCH64)/include -I$(JAVA_HOME_AARCH64)/include/darwin -I$(SDK)/System/Library/Frameworks/JavaVM.framework/Headers -I../../../target/generated-sources/cpp/include \
+        -F$(SDK)/System/Library/Frameworks/JavaVM.framework/Frameworks
+
+OBJC_FLAGS=-I$(JAVA_HOME_AARCH64)/include -I$(SDK)/System/Library/Frameworks/Foundation.framework/Headers \
+        -I$(SDK)/System/Library/Frameworks/Cocoa.framework/Headers
+ 
+LDFLAGS = -shared -target $(TARGET) -lobjc -L$(JAVA_HOME_AARCH64)/lib -ljawt -framework Foundation -framework Cocoa
+
+BINDIR = ../../../target/cpp/$(TARGET)/objects
+INSTALL_PATH = ../resources/META-INF/lib/macos
+
+CXX_SOURCES = jniload.cpp utils.cpp
+OBJC_SOURCES = mac/JNIUtilities.mm mac/nativedialogs.mm
+OBJC_OBJECTS = $(patsubst mac/%.mm, $(BINDIR)/%.o, $(OBJC_SOURCES))
+OBJECTS = $(patsubst %.cpp, $(BINDIR)/%.o, $(CXX_SOURCES))
+OBJECTS += $(OBJC_OBJECTS)
+
+LIBPREFIX = lib
+LIBSUFFIX = -$(TARGET)
+LIBEXTENSION = jnilib
+LIBSHORTNAME = nativedialogs
+LIBRARY = $(BINDIR)/$(LIBPREFIX)$(LIBSHORTNAME)$(LIBSUFFIX).$(LIBEXTENSION)
+
+$(BINDIR)/%.o:	mac/%.mm
+	$(CXX) $(CXXFLAGS) $(OBJC_FLAGS) $< -o $@
+
