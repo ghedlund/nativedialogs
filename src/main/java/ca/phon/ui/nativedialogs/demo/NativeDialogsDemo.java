@@ -73,6 +73,7 @@ public class NativeDialogsDemo extends JFrame {
 	 * main
 	 */
 	public static void main(String[] args) {
+		System.out.println("Process " + ProcessHandle.current().pid());
 		final Runnable onEDT = new Runnable() {
 			
 			@Override

@@ -17,6 +17,7 @@
 #include <jawt_md.h>
 #include <windows.h>
 #include <shlobj.h>
+#include <Shlwapi.h>
 #include <shobjidl.h>
 
 #include "../jniload.h"
@@ -24,6 +25,78 @@
 #include "../utils.h"
 
 #include <string>
+
+class CDialogEventHandler : public IFileDialogEvents,
+                            public IFileDialogControlEvents
+{
+public:
+    // IUnknown methods
+    IFACEMETHODIMP QueryInterface(REFIID riid, void** ppv)
+    {
+        static const QITAB qit[] = {
+                QITABENT(CDialogEventHandler, IFileDialogEvents),
+                QITABENT(CDialogEventHandler, IFileDialogControlEvents),
+                { 0 },
+#pragma warning(suppress:4838)
+        };
+        return QISearch(this, qit, riid, ppv);
+    }
+
+    IFACEMETHODIMP_(ULONG) AddRef()
+    {
+        return InterlockedIncrement(&_cRef);
+    }
+
+    IFACEMETHODIMP_(ULONG) Release()
+    {
+        long cRef = InterlockedDecrement(&_cRef);
+        if (!cRef)
+            delete this;
+        return cRef;
+    }
+
+    // IFileDialogEvents methods
+    IFACEMETHODIMP OnFileOk(IFileDialog *) { return S_OK; };
+    IFACEMETHODIMP OnFolderChange(IFileDialog *) { return S_OK; };
+    IFACEMETHODIMP OnFolderChanging(IFileDialog *, IShellItem *) { return S_OK; };
+    IFACEMETHODIMP OnHelp(IFileDialog *) { return S_OK; };
+    IFACEMETHODIMP OnSelectionChange(IFileDialog *) { return S_OK; };
+    IFACEMETHODIMP OnShareViolation(IFileDialog *, IShellItem *, FDE_SHAREVIOLATION_RESPONSE *) { return S_OK; };
+    IFACEMETHODIMP OnTypeChange(IFileDialog *pfd);
+    IFACEMETHODIMP OnOverwrite(IFileDialog *, IShellItem *, FDE_OVERWRITE_RESPONSE *) { return S_OK; };
+
+    // IFileDialogControlEvents methods
+    IFACEMETHODIMP OnItemSelected(IFileDialogCustomize *pfdc, DWORD dwIDCtl, DWORD dwIDItem) { return S_OK; };
+    IFACEMETHODIMP OnButtonClicked(IFileDialogCustomize *, DWORD) { return S_OK; };
+    IFACEMETHODIMP OnCheckButtonToggled(IFileDialogCustomize *, DWORD, BOOL) { return S_OK; };
+    IFACEMETHODIMP OnControlActivating(IFileDialogCustomize *, DWORD) { return S_OK; };
+
+    CDialogEventHandler(IShellItem *psi) : _cRef(1), _psi(psi) { };
+private:
+    ~CDialogEventHandler() { };
+    IShellItem *_psi;
+    long _cRef;
+};
+
+HRESULT CDialogEventHandler::OnTypeChange(IFileDialog *pfd)
+{
+    BOOL wasGUIThread = IsGUIThread(true);
+    HRESULT retVal = pfd->SetDefaultFolder(this->_psi);
+    return retVal;
+}
+
+HRESULT CDialogEventHandler_CreateInstance(IShellItem *psi, REFIID riid, void **ppv)
+{
+    *ppv = NULL;
+    CDialogEventHandler *pDialogEventHandler = new (std::nothrow) CDialogEventHandler(psi);
+    HRESULT hr = pDialogEventHandler ? S_OK : E_OUTOFMEMORY;
+    if (SUCCEEDED(hr))
+    {
+        hr = pDialogEventHandler->QueryInterface(riid, ppv);
+        pDialogEventHandler->Release();
+    }
+    return hr;
+}
 
 HWND GetWindowHandle(JNIEnv *env, jobject window) {
 	JAWT awt;
@@ -172,19 +245,19 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 	(JNIEnv *env, jclass clazz, jobject props) {
 	jboolean isCopy = false;
 
-	jobject titleObj = GetProperty(env, props, env->NewStringUTF("title"));
+	jobject titleObj = GetProperty(env, props, env->NewStringUTF(u8"title"));
 	const char *title = (titleObj ? env->GetStringUTFChars((jstring)titleObj, &isCopy) : NULL);
 
-	jobject promptObj = GetProperty(env, props, env->NewStringUTF("prompt"));
+	jobject promptObj = GetProperty(env, props, env->NewStringUTF(u8"prompt"));
 	const char *prompt = (promptObj ? env->GetStringUTFChars((jstring)promptObj, &isCopy) : NULL);
 
-	jobject nflObj = GetProperty(env, props, env->NewStringUTF("name_field_label"));
+	jobject nflObj = GetProperty(env, props, env->NewStringUTF(u8"name_field_label"));
 	const char *nameFieldLabel = (nflObj ? env->GetStringUTFChars((jstring)nflObj, &isCopy) : NULL);
 
-	jobject parentWindowObj = GetProperty(env, props, env->NewStringUTF("parent_window"));
+	jobject parentWindowObj = GetProperty(env, props, env->NewStringUTF(u8"parent_window"));
 	HWND parentWindow = (parentWindowObj ? GetWindowHandle(env, parentWindowObj) : NULL);
 
-	jobject initialFolderObj = GetProperty(env, props, env->NewStringUTF("initial_folder"));
+	jobject initialFolderObj = GetProperty(env, props, env->NewStringUTF(u8"initial_folder"));
 	const char *initialFolder = (initialFolderObj ? env->GetStringUTFChars((jstring)initialFolderObj, &isCopy) : NULL);
 	IShellItem *initialFolderItem = NULL;
 	if (initialFolder) {
@@ -192,10 +265,10 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 		SHCreateItemFromParsingName(wInitialFolder.c_str(), NULL, IID_PPV_ARGS(&initialFolderItem));
 	}
 
-	jobject filenameObj = GetProperty(env, props, env->NewStringUTF("initial_file"));
+	jobject filenameObj = GetProperty(env, props, env->NewStringUTF(u8"initial_file"));
 	const char *filename = (filenameObj ? env->GetStringUTFChars((jstring)filenameObj, &isCopy) : NULL);
 
-	jobject filterObj = GetProperty(env, props, env->NewStringUTF("file_filter"));
+	jobject filterObj = GetProperty(env, props, env->NewStringUTF(u8"file_filter"));
 
 	int totalFilters = 1;
 	COMDLG_FILTERSPEC *filters;
@@ -216,31 +289,31 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 	const char *defaultExt = (filterObj ? GetDefaultExtension(env, filterObj).c_str() : NULL);
 
 
-	jobject messageObj = GetProperty(env, props, env->NewStringUTF("message"));
+	jobject messageObj = GetProperty(env, props, env->NewStringUTF(u8"message"));
 	const char *message = (messageObj ? env->GetStringUTFChars((jstring)messageObj, &isCopy) : NULL);
 
-	jobject canCreateFoldersObj = GetProperty(env, props, env->NewStringUTF("can_create_directories"));
+	jobject canCreateFoldersObj = GetProperty(env, props, env->NewStringUTF(u8"can_create_directories"));
 	bool canCreateFolders = (canCreateFoldersObj ? GetBool(env, canCreateFoldersObj) : false);
 
-	jobject showHiddenObj = GetProperty(env, props, env->NewStringUTF("show_hidden"));
+	jobject showHiddenObj = GetProperty(env, props, env->NewStringUTF(u8"show_hidden"));
 	bool showHidden = (showHiddenObj ? GetBool(env, showHiddenObj) : false);
 
-	jobject canSelectFilesObj = GetProperty(env, props, env->NewStringUTF("can_choose_files"));
+	jobject canSelectFilesObj = GetProperty(env, props, env->NewStringUTF(u8"can_choose_files"));
 	bool canSelectFiles = (canSelectFilesObj ? GetBool(env, canSelectFilesObj) : false);
 
-	jobject canSelectFoldersObj = GetProperty(env, props, env->NewStringUTF("can_choose_directories"));
+	jobject canSelectFoldersObj = GetProperty(env, props, env->NewStringUTF(u8"can_choose_directories"));
 	bool canSelectFolders = (canSelectFoldersObj ? GetBool(env, canSelectFoldersObj) : false);
 
-	jobject allowMultipleSelectionObj = GetProperty(env, props, env->NewStringUTF("allow_multiple_selection"));
+	jobject allowMultipleSelectionObj = GetProperty(env, props, env->NewStringUTF(u8"allow_multiple_selection"));
 	bool allowMultipleSelection = (allowMultipleSelectionObj ? GetBool(env, allowMultipleSelectionObj) : false);
 
-	jobject gListener = env->NewGlobalRef(GetProperty(env, props, env->NewStringUTF("listener")));
+	jobject gListener = env->NewGlobalRef(GetProperty(env, props, env->NewStringUTF(u8"listener")));
 
 	CoInitialize(NULL);
 
 	IFileOpenDialog *pfd = NULL;
 	HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog,
-		NULL,:wq::
+		NULL,
 		CLSCTX_INPROC_SERVER,
 		IID_PPV_ARGS(&pfd));
 	if (SUCCEEDED(hr)) {
@@ -377,19 +450,19 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 	(JNIEnv *env, jclass clazz, jobject props) {
 	jboolean isCopy = false;
 
-	jobject titleObj = GetProperty(env, props, env->NewStringUTF("title"));
+	jobject titleObj = GetProperty(env, props, env->NewStringUTF(u8"title"));
 	const char *title = (titleObj ? env->GetStringUTFChars((jstring)titleObj, &isCopy) : NULL);
 
-	jobject promptObj = GetProperty(env, props, env->NewStringUTF("prompt"));
+	jobject promptObj = GetProperty(env, props, env->NewStringUTF(u8"prompt"));
 	const char *prompt = (promptObj ? env->GetStringUTFChars((jstring)promptObj, &isCopy) : NULL);
 
-	jobject nflObj = GetProperty(env, props, env->NewStringUTF("name_field_label"));
+	jobject nflObj = GetProperty(env, props, env->NewStringUTF(u8"name_field_label"));
 	const char *nameFieldLabel = (nflObj ? env->GetStringUTFChars((jstring)nflObj, &isCopy) : NULL);
 
-	jobject parentWindowObj = GetProperty(env, props, env->NewStringUTF("parent_window"));
+	jobject parentWindowObj = GetProperty(env, props, env->NewStringUTF(u8"parent_window"));
 	HWND parentWindow = (parentWindowObj ? GetWindowHandle(env, parentWindowObj) : NULL);
 
-	jobject initialFolderObj = GetProperty(env, props, env->NewStringUTF("initial_folder"));
+	jobject initialFolderObj = GetProperty(env, props, env->NewStringUTF(u8"initial_folder"));
 	const char *initialFolder = (initialFolderObj ? env->GetStringUTFChars((jstring)initialFolderObj, &isCopy) : NULL);
 	IShellItem *initialFolderItem = NULL;
 	if (initialFolder) {
@@ -397,10 +470,10 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 		SHCreateItemFromParsingName(wInitialFolder.c_str(), NULL, IID_PPV_ARGS(&initialFolderItem));
 	}
 
-	jobject filenameObj = GetProperty(env, props, env->NewStringUTF("initial_file"));
+	jobject filenameObj = GetProperty(env, props, env->NewStringUTF(u8"initial_file"));
 	const char *filename = (filenameObj ? env->GetStringUTFChars((jstring)filenameObj, &isCopy) : NULL);
 
-	jobject filterObj = GetProperty(env, props, env->NewStringUTF("file_filter"));
+	jobject filterObj = GetProperty(env, props, env->NewStringUTF(u8"file_filter"));
 	int totalFilters = 1;
 	COMDLG_FILTERSPEC *filters;
 	COMDLG_FILTERSPEC customFilter;
@@ -420,16 +493,16 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 
 	const char *defaultExt = (filterObj ? GetDefaultExtension(env, filterObj).c_str() : NULL);
 
-	jobject messageObj = GetProperty(env, props, env->NewStringUTF("message"));
+	jobject messageObj = GetProperty(env, props, env->NewStringUTF(u8"message"));
 	const char *message = (messageObj ? env->GetStringUTFChars((jstring)messageObj, &isCopy) : NULL);
 
-	jobject canCreateFoldersObj = GetProperty(env, props, env->NewStringUTF("can_create_directories"));
+	jobject canCreateFoldersObj = GetProperty(env, props, env->NewStringUTF(u8"can_create_directories"));
 	bool canCreateFolders = (canCreateFoldersObj ? GetBool(env, canCreateFoldersObj) : false);
 
-	jobject showHiddenObj = GetProperty(env, props, env->NewStringUTF("show_hidden"));
+	jobject showHiddenObj = GetProperty(env, props, env->NewStringUTF(u8"show_hidden"));
 	bool showHidden = (showHiddenObj ? GetBool(env, showHiddenObj) : false);
 
-	jobject gListener = env->NewGlobalRef(GetProperty(env, props, env->NewStringUTF("listener")));
+	jobject gListener = env->NewGlobalRef(GetProperty(env, props, env->NewStringUTF(u8"listener")));
 
 	CoInitialize(NULL);
 
@@ -451,8 +524,15 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 		if (defaultExt)
 			pfd->SetDefaultExtension(ToWStr(std::string(defaultExt)).c_str());
 
-		if (initialFolderItem)
-			pfd->SetDefaultFolder(initialFolderItem);
+        DWORD dlgEventsCookie = 0L;
+		if (initialFolderItem) {
+            BOOL guiThread = IsGUIThread(FALSE);
+            IFileDialogEvents *pfde = NULL;
+            HRESULT dlgEventsResult = CDialogEventHandler_CreateInstance(initialFolderItem, IID_PPV_ARGS(&pfde));
+            pfd->Advise(pfde, &dlgEventsCookie);
+            dlgEventsResult = pfd->AddPlace(initialFolderItem, FDAP_TOP);
+            pfd->SetFolder(initialFolderItem);
+        }
 
 		FILEOPENDIALOGOPTIONS opts;
 		pfd->GetOptions(&opts);
@@ -494,6 +574,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 			SendDialogResult(env, gListener, dlgevt);
 		}
 
+        if(dlgEventsCookie)
+            pfd->Unadvise(dlgEventsCookie);
 
 		pfd->Release();
 	}
