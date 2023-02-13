@@ -20,7 +20,7 @@
 #include <shobjidl.h>
 
 #include "../jniload.h"
-#include "nativedialogs.h"
+#include "ca_phon_ui_nativedialogs_NativeDialogs.h"
 #include "../utils.h"
 
 #include <string>
@@ -226,13 +226,13 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 	bool showHidden = (showHiddenObj ? GetBool(env, showHiddenObj) : false);
 
 	jobject canSelectFilesObj = GetProperty(env, props, env->NewStringUTF("can_choose_files"));
-	bool canSelectFiles = (canSelectFilesObj ? GetBool(env, canSelectFilesObj) : NULL);
+	bool canSelectFiles = (canSelectFilesObj ? GetBool(env, canSelectFilesObj) : false);
 
 	jobject canSelectFoldersObj = GetProperty(env, props, env->NewStringUTF("can_choose_directories"));
-	bool canSelectFolders = (canSelectFoldersObj ? GetBool(env, canSelectFoldersObj) : NULL);
+	bool canSelectFolders = (canSelectFoldersObj ? GetBool(env, canSelectFoldersObj) : false);
 
 	jobject allowMultipleSelectionObj = GetProperty(env, props, env->NewStringUTF("allow_multiple_selection"));
-	bool allowMultipleSelection = (allowMultipleSelectionObj ? GetBool(env, allowMultipleSelectionObj) : NULL);
+	bool allowMultipleSelection = (allowMultipleSelectionObj ? GetBool(env, allowMultipleSelectionObj) : false);
 
 	jobject gListener = env->NewGlobalRef(GetProperty(env, props, env->NewStringUTF("listener")));
 
@@ -240,7 +240,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 
 	IFileOpenDialog *pfd = NULL;
 	HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog,
-		NULL,
+		NULL,:wq::
 		CLSCTX_INPROC_SERVER,
 		IID_PPV_ARGS(&pfd));
 	if (SUCCEEDED(hr)) {
@@ -257,7 +257,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 			pfd->SetDefaultExtension(ToWStr(std::string(defaultExt)).c_str());
 
 		if (initialFolderItem)
-			pfd->SetFolder(initialFolderItem);
+			pfd->SetDefaultFolder(initialFolderItem);
 
 		FILEOPENDIALOGOPTIONS opts;
 		pfd->GetOptions(&opts);
@@ -452,7 +452,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 			pfd->SetDefaultExtension(ToWStr(std::string(defaultExt)).c_str());
 
 		if (initialFolderItem)
-			pfd->SetFolder(initialFolderItem);
+			pfd->SetDefaultFolder(initialFolderItem);
 
 		FILEOPENDIALOGOPTIONS opts;
 		pfd->GetOptions(&opts);

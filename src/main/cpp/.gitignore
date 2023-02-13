@@ -1,8 +1,7 @@
 makefile.defs
-
+.idea/
 *.a
 *.o
 *.dll
 *.jnilib
 *.so
-
