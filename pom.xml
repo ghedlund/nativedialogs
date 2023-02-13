@@ -6,7 +6,7 @@
   <artifactId>native-dialogs</artifactId>
   <name>Native Dialogs</name>
   <description>Native dialogs for Java with fallback to Swing.</description>
-  <version>19</version>
+  <version>20-SNAPSHOT</version>
   
   <developers>
     <developer>
