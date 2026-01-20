@@ -119,6 +119,7 @@ HWND GetWindowHandle(JNIEnv *env, jobject window) {
 	// Lock the drawing surface
 	lock = ds->Lock(ds);
 	if ((lock & JAWT_LOCK_ERROR) != 0) {
+		awt.FreeDrawingSurface(ds);
 		return NULL;
 	}
 
@@ -286,8 +287,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 		filters = new COMDLG_FILTERSPEC[1];
 		filters[0] = allFilesSpec;
 	}
-	const char *defaultExt = (filterObj ? GetDefaultExtension(env, filterObj).c_str() : NULL);
-
+	std::string defaultExtStr = (filterObj ? GetDefaultExtension(env, filterObj) : "");
+	const char *defaultExt = (!defaultExtStr.empty() ? defaultExtStr.c_str() : NULL);
 
 	jobject messageObj = GetProperty(env, props, env->NewStringUTF(u8"message"));
 	const char *message = (messageObj ? env->GetStringUTFChars((jstring)messageObj, &isCopy) : NULL);
@@ -373,6 +374,7 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 							jstring jstr = env->NewStringUTF(ToMbStr(std::wstring(pszDisplayName)).c_str());
 							env->SetObjectArrayElement((jobjectArray)data, i, jstr);
 
+							CoTaskMemFree(pszDisplayName);
 							psiResult->Release();
 						}
 
@@ -386,11 +388,12 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 				hr = pfd->GetResult(&psiResult);
 
 				if (SUCCEEDED(hr)) {
-					LPWSTR pszDisplayName;
+					LPWSTR pszDisplayName = NULL;
 					psiResult->GetDisplayName(SIGDN_FILESYSPATH, &pszDisplayName);
 
 					data = env->NewStringUTF(ToMbStr(std::wstring(pszDisplayName)).c_str());
 
+					CoTaskMemFree(pszDisplayName);
 					psiResult->Release();
 				}
 			}
@@ -432,9 +435,9 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowOpe
 	if(gListener)
 		env->DeleteGlobalRef(gListener);
 	if (customFilter.pszName)
-		delete customFilter.pszName;
+		free((void*)customFilter.pszName);
 	if (customFilter.pszSpec)
-		delete customFilter.pszSpec;
+		free((void*)customFilter.pszSpec);
 	if (initialFolderItem)
 		initialFolderItem->Release();
 	delete[] filters;
@@ -491,7 +494,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 		filters[0] = allFilesSpec;
 	}
 
-	const char *defaultExt = (filterObj ? GetDefaultExtension(env, filterObj).c_str() : NULL);
+	std::string defaultExtStr = (filterObj ? GetDefaultExtension(env, filterObj) : "");
+	const char *defaultExt = (!defaultExtStr.empty() ? defaultExtStr.c_str() : NULL);
 
 	jobject messageObj = GetProperty(env, props, env->NewStringUTF(u8"message"));
 	const char *message = (messageObj ? env->GetStringUTFChars((jstring)messageObj, &isCopy) : NULL);
@@ -525,11 +529,13 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 			pfd->SetDefaultExtension(ToWStr(std::string(defaultExt)).c_str());
 
         DWORD dlgEventsCookie = 0L;
+        IFileDialogEvents *pfde = NULL;
 		if (initialFolderItem) {
             BOOL guiThread = IsGUIThread(FALSE);
-            IFileDialogEvents *pfde = NULL;
             HRESULT dlgEventsResult = CDialogEventHandler_CreateInstance(initialFolderItem, IID_PPV_ARGS(&pfde));
-            pfd->Advise(pfde, &dlgEventsCookie);
+            if (SUCCEEDED(dlgEventsResult) && pfde) {
+                pfd->Advise(pfde, &dlgEventsCookie);
+            }
             dlgEventsResult = pfd->AddPlace(initialFolderItem, FDAP_TOP);
             pfd->SetFolder(initialFolderItem);
         }
@@ -550,11 +556,12 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 			jobject data = NULL;
 
 			if (SUCCEEDED(hr)) {
-				LPWSTR pszDisplayName;
+				LPWSTR pszDisplayName = NULL;
 				psiResult->GetDisplayName(SIGDN_FILESYSPATH, &pszDisplayName);
 
 				data = env->NewStringUTF(ToMbStr(std::wstring(pszDisplayName)).c_str());
-				
+
+				CoTaskMemFree(pszDisplayName);
 				psiResult->Release();
 			}
 
@@ -576,6 +583,8 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 
         if(dlgEventsCookie)
             pfd->Unadvise(dlgEventsCookie);
+        if(pfde)
+            pfde->Release();
 
 		pfd->Release();
 	}
@@ -601,9 +610,9 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowSav
 	if (gListener)
 		env->DeleteGlobalRef(gListener);
 	if (customFilter.pszName)
-		delete customFilter.pszName;
+		free((void*)customFilter.pszName);
 	if (customFilter.pszSpec)
-		delete customFilter.pszSpec;
+		free((void*)customFilter.pszSpec);
 	delete[] filters;
 	CoUninitialize();
 }

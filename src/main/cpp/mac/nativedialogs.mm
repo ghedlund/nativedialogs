@@ -125,16 +125,17 @@ NSArray *GetAllowedFiletypes(JNIEnv *env, jobject filefilter) {
 	jmethodID get = env->GetMethodID(List, szGetMethod, szGetMethodSig);
 	jmethodID size = env->GetMethodID(List, szSizeMethod, szSizeMethodSig);
 	
-	NSMutableArray *retVal = [[NSMutableArray alloc] init];
-	
+	NSMutableArray *retVal = [NSMutableArray array];
+
 	jobject extList = env->CallObjectMethod(filefilter, exts);
 	int count = env->CallIntMethod(extList, size);
-	
+
 	for(int i = 0; i < count; i++) {
 		jstring ext = (jstring)env->CallObjectMethod(extList, get, i);
 		[retVal addObject:JavaStringToNSString(env, ext)];
+		env->DeleteLocalRef(ext);
 	}
-	
+
 	return retVal;
 }
 
@@ -495,22 +496,22 @@ JNIEXPORT void JNICALL Java_ca_phon_ui_nativedialogs_NativeDialogs_nativeShowMes
 	jobject listener = GetProperty(env, props, @"listener");
 	jobject gListener = env->NewGlobalRef(listener);
 	
-	NSMutableArray *nsOptions = [[NSMutableArray alloc] init];
+	NSMutableArray *nsOptions = [NSMutableArray array];
 	int count = env->GetArrayLength(options);
 	for(int i = 0; i < count; i++) {
 		jobject obj = env->GetObjectArrayElement(options, i);
 		NSString *btnTxt = JavaStringToNSString(env, (jstring)obj);
 		[nsOptions addObject:btnTxt];
+		env->DeleteLocalRef(obj);
 	}
 	
 	
-	AlertFinished *alertListener = 
-		[[[AlertFinished alloc] init] retain];
+	AlertFinished *alertListener = [[AlertFinished alloc] init];
 	[alertListener setYesNo:YES];
 	// create alert
 	void (^block)(void);
 	block = ^(void) {
-		NSAlert *alert = [[[NSAlert alloc] init] retain];
+		NSAlert *alert = [[NSAlert alloc] init];
 		[alert setAlertStyle:NSWarningAlertStyle];
 		[alert setMessageText:header];
 		[alert setInformativeText:message];

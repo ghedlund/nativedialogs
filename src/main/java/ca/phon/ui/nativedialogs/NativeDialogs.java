@@ -1317,26 +1317,26 @@ public class NativeDialogs {
 	 * Simple listener to wait for a native message dialog to close.
 	 */
 	private static class MessageWaitListener implements NativeDialogListener {
-		private boolean finished = false;
-		private NativeDialogEvent event = null;
-		
+		private volatile boolean finished = false;
+		private volatile NativeDialogEvent event = null;
+
 		@Override
-		public void nativeDialogEvent(NativeDialogEvent evt) {
-			finished = true;
+		public synchronized void nativeDialogEvent(NativeDialogEvent evt) {
 			event = evt;
+			finished = true;
+			notifyAll();
 		}
-		
-		public void waitLoop() {
+
+		public synchronized void waitLoop() {
 			while (!finished) {
 				try {
-					Thread.sleep(500);
+					wait();
 				} catch (InterruptedException e) {
 					LOGGER.log(Level.SEVERE, e.getMessage(), e);
 				}
 			}
-			
 		}
-		
+
 		public NativeDialogEvent getEvent() {
 			return event;
 		}
