@@ -1,0 +1,110 @@
+# Makefile.macos.universal
+# Builds arm64 and x86_64 libraries, combines into a universal binary via lipo
+#
+# Usage (from src/main/cpp):
+#   make -f makefiles/Makefile.macos.universal
+#   make -f makefiles/Makefile.macos.universal install
+#   make -f makefiles/Makefile.macos.universal clean
+
+LD = clang++
+CXX = clang++
+
+TARGET_ARM64 = arm64-apple-macos11
+TARGET_X64 = x86_64-apple-macos10.12
+
+# JDK paths - ARM64 uses system JDK, x64 uses Rosetta-compatible JDK
+JDK_HOME_ARM64 ?= $(JAVA_HOME)
+ifeq ($(JDK_HOME_ARM64),)
+  JDK_HOME_ARM64 = /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home
+endif
+
+JDK_HOME_X64 ?= /Users/ghedlund/Applications/jdk-x64-25.0.2+10/Contents/Home
+
+# Common flags (architecture-independent)
+BASE_CXXFLAGS = -std=libc++ -c -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi -fPIC \
+	-I../../../target/generated-sources/cpp/include
+
+BASE_LDFLAGS = -shared -lobjc -framework Foundation -framework Cocoa
+
+# Per-architecture flags with correct JDK paths
+CXXFLAGS_ARM64 = $(BASE_CXXFLAGS) -target $(TARGET_ARM64) \
+	-I$(JDK_HOME_ARM64)/include -I$(JDK_HOME_ARM64)/include/darwin
+
+CXXFLAGS_X64 = $(BASE_CXXFLAGS) -target $(TARGET_X64) \
+	-I$(JDK_HOME_X64)/include -I$(JDK_HOME_X64)/include/darwin
+
+OBJC_FLAGS_ARM64 = -I$(JDK_HOME_ARM64)/include
+OBJC_FLAGS_X64   = -I$(JDK_HOME_X64)/include
+
+LDFLAGS_ARM64 = $(BASE_LDFLAGS) -target $(TARGET_ARM64) -L$(JDK_HOME_ARM64)/lib -ljawt
+LDFLAGS_X64   = $(BASE_LDFLAGS) -target $(TARGET_X64) -L$(JDK_HOME_X64)/lib -ljawt
+
+# Output directories
+BUILDDIR = ../../../target/cpp
+BINDIR_ARM64 = $(BUILDDIR)/$(TARGET_ARM64)/objects
+BINDIR_X64   = $(BUILDDIR)/$(TARGET_X64)/objects
+INSTALL_PATH = ../resources/META-INF/lib/macos
+
+# Sources
+CXX_SOURCES  = jniload.cpp utils.cpp
+OBJC_SOURCES = mac/JNIUtilities.mm mac/nativedialogs.mm
+
+# Objects per architecture
+OBJECTS_ARM64 = $(patsubst %.cpp, $(BINDIR_ARM64)/%.o, $(CXX_SOURCES)) \
+                $(patsubst mac/%.mm, $(BINDIR_ARM64)/%.o, $(OBJC_SOURCES))
+
+OBJECTS_X64   = $(patsubst %.cpp, $(BINDIR_X64)/%.o, $(CXX_SOURCES)) \
+                $(patsubst mac/%.mm, $(BINDIR_X64)/%.o, $(OBJC_SOURCES))
+
+# Library paths
+LIBNAME = libnativedialogs
+LIBRARY_ARM64 = $(BINDIR_ARM64)/$(LIBNAME)-$(TARGET_ARM64).jnilib
+LIBRARY_X64   = $(BINDIR_X64)/$(LIBNAME)-$(TARGET_X64).jnilib
+LIBRARY       = $(BUILDDIR)/$(LIBNAME).jnilib
+
+# --- Targets ---
+
+all: $(LIBRARY)
+
+# Combine architectures into universal binary
+$(LIBRARY): $(LIBRARY_ARM64) $(LIBRARY_X64)
+	lipo -create $^ -output $@
+	@lipo -info $@
+
+# ARM64 link
+$(LIBRARY_ARM64): $(OBJECTS_ARM64)
+	$(LD) -o $@ $(LDFLAGS_ARM64) $^
+
+# x86_64 link
+$(LIBRARY_X64): $(OBJECTS_X64)
+	$(LD) -o $@ $(LDFLAGS_X64) $^
+
+# ARM64 compile rules
+$(BINDIR_ARM64)/%.o: %.cpp | $(BINDIR_ARM64)
+	$(CXX) $(CXXFLAGS_ARM64) $< -o $@
+
+$(BINDIR_ARM64)/%.o: mac/%.mm | $(BINDIR_ARM64)
+	$(CXX) $(CXXFLAGS_ARM64) $(OBJC_FLAGS_ARM64) $< -o $@
+
+# x86_64 compile rules
+$(BINDIR_X64)/%.o: %.cpp | $(BINDIR_X64)
+	$(CXX) $(CXXFLAGS_X64) $< -o $@
+
+$(BINDIR_X64)/%.o: mac/%.mm | $(BINDIR_X64)
+	$(CXX) $(CXXFLAGS_X64) $(OBJC_FLAGS_X64) $< -o $@
+
+# Create output directories
+$(BINDIR_ARM64):
+	mkdir -p $@
+
+$(BINDIR_X64):
+	mkdir -p $@
+
+clean:
+	rm -rf $(BINDIR_ARM64) $(BINDIR_X64) $(LIBRARY)
+
+install: $(LIBRARY)
+	mkdir -p $(INSTALL_PATH)
+	cp -f $(LIBRARY) $(INSTALL_PATH)
+
+.PHONY: all clean install

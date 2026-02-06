@@ -7,16 +7,14 @@ CXX = clang++
 TARGET = arm64-apple-macos11
 
 # change as necessary
-SDK = /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+JDK_HOME = /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home
 
 CXXFLAGS = -std=libc++ -c -target $(TARGET) -fmessage-length=0 -D_JNI_IMPLEMENTATION_ -Wall -ansi \
-        -fPIC -I$(JAVA_HOME_AARCH64)/include -I$(JAVA_HOME_AARCH64)/include/darwin -I$(SDK)/System/Library/Frameworks/JavaVM.framework/Headers -I../../../target/generated-sources/cpp/include \
-        -F$(SDK)/System/Library/Frameworks/JavaVM.framework/Frameworks
+        -fPIC -I$(JDK_HOME)/include -I$(JDK_HOME)/include/darwin -I../../../target/generated-sources/cpp/include \
 
-OBJC_FLAGS=-I$(JAVA_HOME_AARCH64)/include -I$(SDK)/System/Library/Frameworks/Foundation.framework/Headers \
-        -I$(SDK)/System/Library/Frameworks/Cocoa.framework/Headers
+OBJC_FLAGS=-I$(JDK_HOME)/include 
  
-LDFLAGS = -shared -target $(TARGET) -lobjc -L$(JAVA_HOME_AARCH64)/lib -ljawt -framework Foundation -framework Cocoa
+LDFLAGS = -shared -target $(TARGET) -lobjc -L$(JDK_HOME)/lib -ljawt -framework Foundation -framework Cocoa
 
 BINDIR = ../../../target/cpp/$(TARGET)/objects
 INSTALL_PATH = ../resources/META-INF/lib/macos
