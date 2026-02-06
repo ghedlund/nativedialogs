@@ -2,5 +2,9 @@
 .project
 target
 .classpath
-*\~
+*~
 .claude/
+
+# Gradle
+.gradle/
+build/

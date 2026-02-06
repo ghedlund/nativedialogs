@@ -9,17 +9,23 @@ Java library providing native file/message/font/color dialogs for macOS and Wind
 ## Build Commands
 
 ```bash
-# Compile Java + generate JNI headers
-mvn compile
+# Compile Java sources (including module-info) + package JAR
+./gradlew build
 
-# Package JAR with embedded native libraries
-mvn package
+# Generate JNI headers (output: target/generated-sources/cpp/include/)
+./gradlew generateJniHeaders
 
 # Run demo application
-java -jar target/native-dialogs-22.jar
+java -jar build/libs/native-dialogs-23.jar
+
+# Run demo via JPMS module path
+java --module-path build/libs -m ca.phon.nativedialogs/ca.phon.ui.nativedialogs.demo.NativeDialogsDemo
 
 # Force Swing fallback for testing
-java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar target/native-dialogs-22.jar
+java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/native-dialogs-23.jar
+
+# Publish to GitHub Packages
+./gradlew publish
 ```
 
 ### Native Library Build (C++)
