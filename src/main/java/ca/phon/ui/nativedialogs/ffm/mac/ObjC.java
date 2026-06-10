@@ -54,6 +54,8 @@ public final class ObjC {
         h("objc_msgSend", FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, ADDRESS, JAVA_LONG));
     private static final MethodHandle MSG_bool =
         h("objc_msgSend", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS, ADDRESS));
+    private static final MethodHandle MSG_id_long =
+        h("objc_msgSend", FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, JAVA_LONG));
 
     private ObjC() {}
 
@@ -106,6 +108,11 @@ public final class ObjC {
 
     public static boolean sendBoolRet(MemorySegment recv, String sel) {
         try { return (boolean) MSG_bool.invokeExact(recv, sel(sel)); }
+        catch (Throwable t) { throw new RuntimeException(t); }
+    }
+
+    public static MemorySegment sendIdLong(MemorySegment recv, String sel, long n) {
+        try { return (MemorySegment) MSG_id_long.invokeExact(recv, sel(sel), n); }
         catch (Throwable t) { throw new RuntimeException(t); }
     }
 }
