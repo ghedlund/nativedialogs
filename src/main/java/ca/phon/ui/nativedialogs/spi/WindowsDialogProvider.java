@@ -223,5 +223,20 @@ final class WindowsDialogProvider implements NativeDialogProvider {
         runOnComThread(props.isRunAsync(), work);
     }
     @Override public void showFont(FontDialogProperties p) { throw new UnsupportedOperationException(); }
-    @Override public void showColor(ColorDialogProperties p) { throw new UnsupportedOperationException(); }
+
+    @Override
+    public void showColor(ColorDialogProperties props) {
+        Runnable work = () -> {
+            java.awt.Color start = props.getColor();
+            int initial = (start != null) ? (start.getRGB() & 0xFFFFFF) : 0xFFFFFF;
+            int rgb = ca.phon.ui.nativedialogs.ffm.win.ChooseColor.show(initial);
+            if (rgb < 0) {
+                props.getListener().nativeDialogEvent(new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null));
+            } else {
+                java.awt.Color c = new java.awt.Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+                props.getListener().nativeDialogEvent(new NativeDialogEvent(NativeDialogEvent.OK_OPTION, c));
+            }
+        };
+        runOnComThread(props.isRunAsync(), work);
+    }
 }
