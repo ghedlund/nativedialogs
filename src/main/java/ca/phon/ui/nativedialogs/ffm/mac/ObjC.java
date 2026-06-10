@@ -50,6 +50,8 @@ public final class ObjC {
         h("objc_msgSend", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, JAVA_BOOLEAN));
     private static final MethodHandle MSG_long =
         h("objc_msgSend", FunctionDescriptor.of(JAVA_LONG, ADDRESS, ADDRESS));
+    private static final MethodHandle MSG_id_id_long =
+        h("objc_msgSend", FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, ADDRESS, JAVA_LONG));
 
     private ObjC() {}
 
@@ -92,6 +94,11 @@ public final class ObjC {
 
     public static long sendLong(MemorySegment recv, String sel) {
         try { return (long) MSG_long.invokeExact(recv, sel(sel)); }
+        catch (Throwable t) { throw new RuntimeException(t); }
+    }
+
+    public static MemorySegment sendObjLong(MemorySegment recv, String sel, MemorySegment arg, long n) {
+        try { return (MemorySegment) MSG_id_id_long.invokeExact(recv, sel(sel), arg, n); }
         catch (Throwable t) { throw new RuntimeException(t); }
     }
 }

@@ -20,4 +20,12 @@ class FoundationSmokeTest {
         MemorySegment cls = ObjC.cls("NSOpenPanel");
         assertNotEquals(0L, cls.address(), "AppKit must be loaded for NSOpenPanel");
     }
+
+    @Test
+    void nsStringRoundTrip() {
+        try (java.lang.foreign.Arena a = java.lang.foreign.Arena.ofConfined()) {
+            MemorySegment ns = Foundation.nsString(a, "héllo/世界.txt");
+            assertEquals("héllo/世界.txt", Foundation.toJavaString(ns));
+        }
+    }
 }
