@@ -209,7 +209,19 @@ final class WindowsDialogProvider implements NativeDialogProvider {
         props.getListener().nativeDialogEvent(new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null));
     }
 
-    @Override public void showMessage(MessageDialogProperties p) { throw new UnsupportedOperationException(); }
+    @Override
+    public void showMessage(MessageDialogProperties props) {
+        Runnable work = () -> {
+            String[] opts = props.getOptions();
+            List<String> buttons = (opts == null || opts.length == 0)
+                ? List.of("Ok") : List.of(opts);
+            int idx = ca.phon.ui.nativedialogs.ffm.win.TaskDialog.show(
+                props.getTitle(), props.getHeader(), props.getMessage(), buttons);
+            int resultCode = (idx >= 0) ? idx : NativeDialogEvent.CANCEL_OPTION;
+            props.getListener().nativeDialogEvent(new NativeDialogEvent(resultCode, null));
+        };
+        runOnComThread(props.isRunAsync(), work);
+    }
     @Override public void showFont(FontDialogProperties p) { throw new UnsupportedOperationException(); }
     @Override public void showColor(ColorDialogProperties p) { throw new UnsupportedOperationException(); }
 }
