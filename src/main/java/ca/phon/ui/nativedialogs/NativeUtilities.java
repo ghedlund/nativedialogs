@@ -70,17 +70,19 @@ public class NativeUtilities {
 	/**
 	 * Load native library that is included in the META-INF/lib
 	 * folder.
-	 * 
+	 *
 	 * The library should be in the following folder:
-	 * 
+	 *
 	 * META-INF/lib/${platform}/${libname}
-	 * 
+	 *
 	 * where platform is one of: win32, macos
-	 * 
+	 *
 	 * @param libName
-	 * 
+	 *
 	 * @throws IOException
+	 * @deprecated The library no longer ships native binaries; dialogs use the FFM provider in {@code ca.phon.ui.nativedialogs.spi}.
 	 */
+	@Deprecated
 	public static void loadLibrary(String libName)
 		throws IOException {
 		final String expectedPath = libraryPath(libName);
@@ -111,10 +113,11 @@ public class NativeUtilities {
 	
 	/**
 	 * Determine library path based on current platform.
-	 * 
+	 *
 	 * @param libName
 	 * @return expected library path
 	 */
+	@Deprecated
 	private static String libraryPath(String libName) {
 		String lib = libName;
 		String folder = "META-INF/lib/";
