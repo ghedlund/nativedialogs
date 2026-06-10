@@ -8,3 +8,7 @@ target
 # Gradle
 .gradle/
 build/
+
+# IntelliJ IDEA
+.idea/
+*.iml
