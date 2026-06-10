@@ -4,48 +4,39 @@ plugins {
 }
 
 group = "ca.phon"
-version = "23"
+version = (findProperty("version") as String?)?.takeIf { it != "unspecified" } ?: "24"
 description = "Native dialogs for Java with fallback to Swing."
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
     modularity.inferModulePath = true
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation(platform("org.junit:junit-bom:5.11.3"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.jar {
     manifest {
-        attributes("Main-Class" to "ca.phon.ui.nativedialogs.demo.NativeDialogsDemo")
+        attributes(
+            "Main-Class" to "ca.phon.ui.nativedialogs.demo.NativeDialogsDemo",
+            "Enable-Native-Access" to "ALL-UNNAMED"
+        )
     }
 }
 
-// JNI header generation — mirrors the old Ant/Maven javah task
-tasks.register<Exec>("generateJniHeaders") {
-    dependsOn(tasks.compileJava)
-    description = "Generate JNI headers for NativeDialogs"
-    group = "build"
-
-    val headerOutputDir = file("target/generated-sources/cpp/include")
-    val tempClassesDir = layout.buildDirectory.dir("tmp/jni-classes")
-
-    doFirst {
-        headerOutputDir.mkdirs()
-        tempClassesDir.get().asFile.mkdirs()
-    }
-
-    val javaToolchain = project.extensions.getByType<JavaToolchainService>()
-    val compiler = javaToolchain.compilerFor {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-
-    executable = compiler.get().executablePath.asFile.parentFile.resolve("javac").absolutePath
-    args(
-        "-h", headerOutputDir.absolutePath,
-        "-classpath", tasks.compileJava.get().destinationDirectory.get().asFile.absolutePath,
-        "-d", tempClassesDir.get().asFile.absolutePath,
-        "src/main/java/ca/phon/ui/nativedialogs/NativeDialogs.java"
-    )
+tasks.test {
+    useJUnitPlatform()
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
 publishing {

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Java library providing native file/message/font/color dialogs for macOS and Windows, with Swing fallback.
+Java library providing native file/message/font/color dialogs for macOS and Windows, with Swing fallback. Implemented in pure Java using the Foreign Function & Memory (FFM) API — no native binaries are built or shipped.
 
 ## Build Commands
 
@@ -12,64 +12,61 @@ Java library providing native file/message/font/color dialogs for macOS and Wind
 # Compile Java sources (including module-info) + package JAR
 ./gradlew build
 
-# Generate JNI headers (output: target/generated-sources/cpp/include/)
-./gradlew generateJniHeaders
+# Build with an explicit version (CI derives this from the v<n> tag)
+./gradlew build -Pversion=24
+
+# Run tests (headless: OS detection, provider selection, FFM symbol resolution,
+# string round-trips). Interactive dialog behaviour is NOT tested here.
+./gradlew test
 
 # Run demo application
-java -jar build/libs/native-dialogs-23.jar
+java -jar build/libs/native-dialogs-24.jar
 
 # Run demo via JPMS module path
 java --module-path build/libs -m ca.phon.nativedialogs/ca.phon.ui.nativedialogs.demo.NativeDialogsDemo
 
 # Force Swing fallback for testing
-java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/native-dialogs-23.jar
+java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/native-dialogs-24.jar
 
 # Publish to GitHub Packages
 ./gradlew publish
 ```
 
-### Native Library Build (C++)
+## Requirements
 
-```bash
-cd src/main/cpp
-
-# Link appropriate makefile for your platform
-ln -s makefiles/makefile.defs.macos.arm64 makefile.defs   # macOS ARM64
-ln -s makefiles/makefile.defs.macos.x64 makefile.defs     # macOS x64
-ln -s makefiles/makefile.defs.mingw64 makefile.defs       # Windows 64-bit
-
-make
-make install  # Copies to src/main/resources/META-INF/lib/{platform}/
-```
-
-**Environment variables for native build:**
-- `JAVA_HOME` or `JAVA_HOME_AARCH64` - JDK path for JNI headers
-- `SDK` - macOS SDK path (defaults to Xcode SDK)
-- `MINGW` - MinGW path for Windows builds
+- **Java 25+** (FFM is final since Java 22; this project targets the 25 LTS toolchain).
+- FFM requires native access. The JAR manifest grants it for classpath use
+  (`Enable-Native-Access: ALL-UNNAMED`); module-path consumers pass
+  `--enable-native-access=ca.phon.nativedialogs`.
 
 ## Architecture
 
-**Entry Point:** `NativeDialogs` - Facade class exposing all dialog types
+**Entry Point:** `NativeDialogs` — facade class exposing all dialog types. Keeps a stable public API (including deprecated convenience methods) and dispatches to a provider, falling back to Swing on any failure or unsupported dialog.
 
-**Dialog Types:** Open, Save, Message, Font, Color - each with a corresponding `*Properties` class for configuration
+**Dialog Types:** Open, Save, Message, Font, Color — each with a corresponding `*Properties` class for configuration.
 
-**Pattern:** Each dialog method dispatches to native JNI implementation (`nativeShow*Dialog`) or Swing fallback based on platform availability
+**Provider SPI:** `ca.phon.ui.nativedialogs.spi.NativeDialogProvider` (interface) + `NativeDialogProviders` (cached OS-based selector, returns `null` → Swing). Internal package, not exported.
 
-**Native Implementation:**
-- macOS: `src/main/cpp/mac/nativedialogs.mm` (Objective-C/Cocoa)
-- Windows: `src/main/cpp/windows/nativedialogs.cpp` (currently disabled, falls back to Swing)
+**Native implementation (pure-Java FFM, internal `ca.phon.ui.nativedialogs.ffm.*`):**
+- macOS (`ffm.mac`, `MacDialogProvider`): Cocoa via `objc_msgSend` (libobjc) — `NSOpenPanel`/`NSSavePanel`/`NSAlert`, app-modal, run on the AppKit main thread via GCD `dispatch_*_f`. Font/colour fall back to Swing.
+- Windows (`ffm.win`, `WindowsDialogProvider`): COM Common Item Dialog (`IFileOpenDialog`/`IFileSaveDialog`, invoked by vtable index), `TaskDialogIndirect`, `ChooseFontW`, `ChooseColorW`, on an STA thread.
+- Linux/other: Swing.
 
-**Library Loading:** `NativeUtilities.loadLibrary()` extracts platform-specific library from `META-INF/lib/{platform}/` to temp directory at runtime
-
-**Threading:** Dialogs support both synchronous (blocking) and asynchronous modes via `NativeDialogListener`
+**Threading:** Dialogs support synchronous (blocking) and asynchronous modes via `NativeDialogListener`. Each provider delivers the result by calling `props.getListener().nativeDialogEvent(...)`.
 
 ## Key Files
 
-- `NativeDialogs.java` - Main API facade with JNI native method declarations
-- `NativeUtilities.java` - Platform detection and library loading
-- `*Properties.java` - Configuration classes for each dialog type
-- `module-info.java` - Java module: `ca.phon.nativedialogs`
+- `NativeDialogs.java` — main API facade; dispatches to the provider SPI.
+- `NativeUtilities.java` — platform detection (`loadLibrary` is deprecated/unused).
+- `*Properties.java` — configuration classes for each dialog type.
+- `spi/` — provider interface, selector, and per-OS providers.
+- `ffm/mac/`, `ffm/win/` — FFM bindings to Cocoa and Win32.
+- `module-info.java` — Java module: `ca.phon.nativedialogs`.
+
+## Releases / CI
+
+`.github/workflows/release.yml` triggers on push of a `v<n>` tag (e.g. `v24`). It runs the headless tests on Linux/macOS/Windows, builds the single platform-independent JAR, publishes to GitHub Packages, and attaches the JAR to a GitHub Release. The build version is derived from the tag (`-Pversion=<n>`).
 
 ## Testing
 
-No unit test suite. Use the demo application (`NativeDialogsDemo`) to verify dialog behavior.
+No interactive dialog tests (a dialog needs a human to dismiss it). Automated tests cover OS detection, provider selection, FFM symbol resolution, and string conversion. Verify real dialog behaviour manually with the demo application (`NativeDialogsDemo`) on each platform.
