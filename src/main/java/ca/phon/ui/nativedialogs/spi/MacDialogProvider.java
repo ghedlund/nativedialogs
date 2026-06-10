@@ -14,6 +14,9 @@ import ca.phon.ui.nativedialogs.ffm.mac.*;
 final class MacDialogProvider implements NativeDialogProvider {
 
     private static final long NS_MODAL_RESPONSE_OK = 1L;     // NSModalResponseOK
+    private static final long NS_ALERT_FIRST_BUTTON = 1000L;     // NSAlertFirstButtonReturn
+    private static final int NS_WARNING_ALERT_STYLE = 0;         // NSAlertStyleWarning
+    private static final long NS_CONTROL_STATE_ON = 1L;          // NSControlStateValueOn
 
     MacDialogProvider() {
         // Force class init so construction fails fast if FFM/AppKit is unavailable.
@@ -116,7 +119,43 @@ final class MacDialogProvider implements NativeDialogProvider {
 
     @Override
     public void showMessage(MessageDialogProperties props) {
-        // implemented in Task 2.5
-        throw new UnsupportedOperationException("message not yet wired");
+        Runnable work = () -> runMessage(props);
+        if (props.isRunAsync()) Gcd.onMainAsync(work); else Gcd.onMainSync(work);
+    }
+
+    private void runMessage(MessageDialogProperties props) {
+        try (Arena a = Arena.ofShared()) {
+            MemorySegment alert = ObjC.send(
+                ObjC.send(ObjC.cls("NSAlert"), "alloc"), "init");
+            ObjC.sendLongArg(alert, "setAlertStyle:", NS_WARNING_ALERT_STYLE);
+            if (props.getHeader() != null)
+                ObjC.sendVoid(alert, "setMessageText:", Foundation.nsString(a, props.getHeader()));
+            if (props.getMessage() != null)
+                ObjC.sendVoid(alert, "setInformativeText:", Foundation.nsString(a, props.getMessage()));
+
+            boolean suppression = props.isShowSuppressionBox();
+            ObjC.sendBool(alert, "setShowsSuppressionButton:", suppression);
+            if (suppression && props.getSuppressionMessage() != null) {
+                MemorySegment btn = ObjC.send(alert, "suppressionButton");
+                ObjC.sendVoid(btn, "setTitle:", Foundation.nsString(a, props.getSuppressionMessage()));
+            }
+
+            String[] options = props.getOptions();
+            if (options == null || options.length == 0) options = new String[] { "Ok" };
+            for (String opt : options) {
+                ObjC.send(alert, "addButtonWithTitle:", Foundation.nsString(a, opt));
+            }
+
+            long alertResult = ObjC.sendLong(alert, "runModal");
+            int resultCode = (int) (alertResult - NS_ALERT_FIRST_BUTTON);
+
+            Boolean suppressed = null;
+            if (suppression) {
+                MemorySegment btn = ObjC.send(alert, "suppressionButton");
+                long state = ObjC.sendLong(btn, "state");
+                suppressed = (state == NS_CONTROL_STATE_ON);
+            }
+            props.getListener().nativeDialogEvent(new NativeDialogEvent(resultCode, suppressed));
+        }
     }
 }
