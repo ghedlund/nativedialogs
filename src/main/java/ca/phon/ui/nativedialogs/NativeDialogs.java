@@ -20,7 +20,6 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Window;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,6 +38,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
 import ca.phon.ui.dialogs.JFontDialog;
+import ca.phon.ui.nativedialogs.spi.NativeDialogProvider;
+import ca.phon.ui.nativedialogs.spi.NativeDialogProviders;
 
 /**
  * Dialog wrapper methods.  These methods will use
@@ -51,24 +52,11 @@ public class NativeDialogs {
 	private final static Logger LOGGER = Logger.getLogger(NativeDialogs.class.getName());
 	
 	public final static String FORCE_SWING_PROP = NativeDialogs.class.getName() + ".forceSwing";
-	
-	/** The native library name */
-	private final static String _PHONNATIVE_LIB_NAME = "nativedialogs";
-	
-	// assume library is there unless we get an exception
-	private static boolean libraryFound = false;
-	
-	static {
-		if(!Boolean.parseBoolean(System.getProperty(FORCE_SWING_PROP, "false"))) {
-			try {
-				NativeUtilities.loadLibrary(_PHONNATIVE_LIB_NAME);
-				libraryFound = true;
-			} catch (IOException e) {
-				LOGGER.log(Level.WARNING, "Unable to load native dialogs library, will fallback to Swing", e);
-			}
-		}
+
+	private static NativeDialogProvider provider() {
+		return NativeDialogProviders.get();
 	}
-	
+
 	/**
 	 * Show dialog based on given properties.
 	 * 
@@ -95,14 +83,7 @@ public class NativeDialogs {
 		return retVal;
 	}
 	
-	/** 
-	 * Method for displaying the native open file dialog.
-	 * 
-	 * @param properties
-	 */
-	private native static void nativeShowOpenDialog(OpenDialogProperties properties);
-	
-	/** 
+	/**
 	 * Method for displaying the swing open file dialog.
 	 * 
 	 * @param properties
@@ -205,11 +186,12 @@ public class NativeDialogs {
 			final MessageWaitListener mwl = new MessageWaitListener();
 			properties.setListener(mwl);
 		}
-		if(libraryFound && !properties.isForceUseSwing()) {
+		final NativeDialogProvider p = provider();
+		if (p != null && p.supportsOpen() && !properties.isForceUseSwing()) {
 			try {
-				nativeShowOpenDialog(properties);
-			} catch (UnsatisfiedLinkError e) {
-				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				p.showOpen(properties);
+			} catch (Throwable t) {
+				LOGGER.log(Level.SEVERE, "Native open dialog failed; falling back to Swing", t);
 				swingShowOpenDialog(properties);
 			}
 		} else {
@@ -436,13 +418,6 @@ public class NativeDialogs {
 //			return null;
 //	}
 	
-	/**
-	 * Method for displaying a save file dialog.
-	 * 
-	 * @param properties
-	 */
-	private native static void nativeShowSaveDialog(SaveDialogProperties properties);
-	
 	private static void swingShowSaveDialog(SaveDialogProperties properties) {
 		final Runnable task = 
 				new ShowSaveFileTask(properties);
@@ -542,11 +517,12 @@ public class NativeDialogs {
 			final MessageWaitListener mwl = new MessageWaitListener();
 			properties.setListener(mwl);
 		}
-		if(libraryFound && !properties.isForceUseSwing()) {
+		final NativeDialogProvider p = provider();
+		if (p != null && p.supportsSave() && !properties.isForceUseSwing()) {
 			try {
-				nativeShowSaveDialog(properties);
-			} catch (UnsatisfiedLinkError e) {
-				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				p.showSave(properties);
+			} catch (Throwable t) {
+				LOGGER.log(Level.SEVERE, "Native save dialog failed; falling back to Swing", t);
 				swingShowSaveDialog(properties);
 			}
 		} else {
@@ -702,8 +678,6 @@ public class NativeDialogs {
 	 * 
 	 * @param properties
 	 */
-	private native static void nativeShowMessageDialog(MessageDialogProperties properties);
-	
 	private static void swingShowMessageDialog(MessageDialogProperties properties) {
 		final Runnable task = new ShowMessageTask(properties);
 		
@@ -761,11 +735,12 @@ public class NativeDialogs {
 			final MessageWaitListener mwl = new MessageWaitListener();
 			properties.setListener(mwl);
 		}
-		if(libraryFound && !properties.isForceUseSwing()) {
+		final NativeDialogProvider p = provider();
+		if (p != null && p.supportsMessage() && !properties.isForceUseSwing()) {
 			try {
-				nativeShowMessageDialog(properties);
-			} catch (UnsatisfiedLinkError e) {
-				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				p.showMessage(properties);
+			} catch (Throwable t) {
+				LOGGER.log(Level.SEVERE, "Native message dialog failed; falling back to Swing", t);
 				swingShowMessageDialog(properties);
 			}
 		} else {
@@ -811,8 +786,6 @@ public class NativeDialogs {
 	 * 
 	 * @param properties
 	 */
-	private native static void nativeShowFontDialog(FontDialogProperties properties);
-	
 	private static void swingShowFontDialog(FontDialogProperties properties) {
 		final Runnable task = new ShowFontSelectionTask(properties);
 		
@@ -876,11 +849,12 @@ public class NativeDialogs {
 			final MessageWaitListener mwl = new MessageWaitListener();
 			properties.setListener(mwl);
 		}
-		if(libraryFound && !properties.isForceUseSwing()) {
+		final NativeDialogProvider p = provider();
+		if (p != null && p.supportsFont() && !properties.isForceUseSwing()) {
 			try {
-				nativeShowFontDialog(properties);
-			} catch (UnsatisfiedLinkError e) {
-				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				p.showFont(properties);
+			} catch (Throwable t) {
+				LOGGER.log(Level.SEVERE, "Native font dialog failed; falling back to Swing", t);
 				swingShowFontDialog(properties);
 			}
 		} else {
@@ -931,8 +905,6 @@ public class NativeDialogs {
 	 * @param listener
 	 * @param currentColor as a 24-bit hex string
 	 */
-	private native static void nativeShowColorDialog(ColorDialogProperties props);
-	
 	private static void swingShowColorDialog(ColorDialogProperties props) {
 		final Runnable task = new ShowColorSelectionTask(props);
 		
@@ -957,11 +929,12 @@ public class NativeDialogs {
 			final MessageWaitListener mwl = new MessageWaitListener();
 			properties.setListener(mwl);
 		}
-		if(libraryFound && !properties.isForceUseSwing()) {
+		final NativeDialogProvider p = provider();
+		if (p != null && p.supportsColor() && !properties.isForceUseSwing()) {
 			try {
-				nativeShowColorDialog(properties);
-			} catch (UnsatisfiedLinkError e) {
-				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+				p.showColor(properties);
+			} catch (Throwable t) {
+				LOGGER.log(Level.SEVERE, "Native colour dialog failed; falling back to Swing", t);
 				swingShowColorDialog(properties);
 			}
 		} else {
