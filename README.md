@@ -30,11 +30,11 @@ java.util.List<String> selected = NativeDialogs.showOpenDialog(props);
 
 ```bash
 ./gradlew build
-java -jar build/libs/native-dialogs-24.jar
+java -jar build/libs/native-dialogs-25.jar
 ```
 
 Force the Swing fallback for testing:
 
 ```bash
-java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/native-dialogs-24.jar
+java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/native-dialogs-25.jar
 ```

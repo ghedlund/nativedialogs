@@ -13,20 +13,20 @@ Java library providing native file/message/font/color dialogs for macOS and Wind
 ./gradlew build
 
 # Build with an explicit version (CI derives this from the v<n> tag)
-./gradlew build -Pversion=24
+./gradlew build -Pversion=25
 
 # Run tests (headless: OS detection, provider selection, FFM symbol resolution,
 # string round-trips). Interactive dialog behaviour is NOT tested here.
 ./gradlew test
 
 # Run demo application
-java -jar build/libs/native-dialogs-24.jar
+java -jar build/libs/native-dialogs-25.jar
 
 # Run demo via JPMS module path
 java --module-path build/libs -m ca.phon.nativedialogs/ca.phon.ui.nativedialogs.demo.NativeDialogsDemo
 
 # Force Swing fallback for testing
-java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/native-dialogs-24.jar
+java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/native-dialogs-25.jar
 
 # Publish to GitHub Packages
 ./gradlew publish
@@ -70,7 +70,7 @@ java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/na
 
 ## Releases / CI
 
-`.github/workflows/release.yml` triggers on push of a `v<n>` tag (e.g. `v24`). It runs the headless tests on Linux/macOS/Windows, builds the single platform-independent JAR, publishes to GitHub Packages, and attaches the JAR to a GitHub Release. The build version is derived from the tag (`-Pversion=<n>`).
+`.github/workflows/release.yml` triggers on push of a `v<n>` tag (e.g. `v25`). It runs the headless tests on Linux/macOS/Windows, builds the single platform-independent JAR, publishes to GitHub Packages, and attaches the JAR to a GitHub Release. The build version is derived from the tag (`-Pversion=<n>`).
 
 ## Testing
 
