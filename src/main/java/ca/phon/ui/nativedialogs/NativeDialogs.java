@@ -61,6 +61,44 @@ public class NativeDialogs {
 	}
 
 	/**
+	 * Installs the listener a dialog reports its result to. A blocking request gets
+	 * a listener the caller waits on. An asynchronous request keeps its own listener,
+	 * called on the event dispatch thread.
+	 */
+	static void prepareListener(NativeDialogProperties properties) {
+		if(!properties.isRunAsync()) {
+			properties.setListener(new MessageWaitListener());
+		} else if(!(properties.getListener() instanceof EventThreadListener)) {
+			properties.setListener(new EventThreadListener(properties.getListener()));
+		}
+	}
+
+	/**
+	 * Calls a listener on the event dispatch thread.
+	 *
+	 * <p>A dialog reports its result on the thread that ran it: on macOS a native
+	 * callback on the AppKit thread, on Windows a COM thread. Application listeners
+	 * must not run there. They update the user interface, and an exception that
+	 * leaves a native callback ends the JVM.
+	 */
+	private static class EventThreadListener implements NativeDialogListener {
+		private final NativeDialogListener listener;
+
+		EventThreadListener(NativeDialogListener listener) {
+			this.listener = listener;
+		}
+
+		@Override
+		public void nativeDialogEvent(NativeDialogEvent evt) {
+			if(EventQueue.isDispatchThread()) {
+				listener.nativeDialogEvent(evt);
+			} else {
+				EventQueue.invokeLater(() -> listener.nativeDialogEvent(evt));
+			}
+		}
+	}
+
+	/**
 	 * Show dialog based on given properties.
 	 * 
 	 * @param properties
@@ -185,10 +223,7 @@ public class NativeDialogs {
 	 */
 	public static List<String> showOpenDialog(OpenDialogProperties properties) {
 		List<String> retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsOpen() && !properties.isForceUseSwing()) {
 			try {
@@ -516,10 +551,7 @@ public class NativeDialogs {
 	 */
 	public static String showSaveDialog(SaveDialogProperties properties) {
 		String retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsSave() && !properties.isForceUseSwing()) {
 			try {
@@ -734,10 +766,7 @@ public class NativeDialogs {
 	 */
 	public static Integer showMessageDialog(MessageDialogProperties properties) {
 		Integer retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsMessage() && !properties.isForceUseSwing()) {
 			try {
@@ -848,10 +877,7 @@ public class NativeDialogs {
 	 */
 	public static Font showFontDialog(FontDialogProperties properties) {
 		Font retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsFont() && !properties.isForceUseSwing()) {
 			try {
@@ -928,10 +954,7 @@ public class NativeDialogs {
 	 */
 	public static Color showColorDialog(ColorDialogProperties properties) {
 		Color retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsColor() && !properties.isForceUseSwing()) {
 			try {

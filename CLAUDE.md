@@ -56,6 +56,7 @@ java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/na
 
 - The facade (`NativeDialogs.MessageWaitListener`) does the waiting for blocking requests. On the event dispatch thread it waits in a `java.awt.SecondaryLoop`, so Swing events keep being dispatched while the dialog is open.
 - Never make the event dispatch thread wait for the AppKit thread. AppKit answers accessibility queries and input method callbacks by waiting on the event dispatch thread (`LWCToolkit.invokeAndWait`, no timeout); if both wait, the application freezes and the dialog may never open. `MacDialogProvider` therefore starts the dialog with `Gcd.onMainAsync` when called on the event dispatch thread.
+- Listeners of asynchronous dialogs are called on the event dispatch thread (`NativeDialogs.EventThreadListener`, installed by `prepareListener`). Providers report results on the AppKit thread (macOS, inside an upcall) or a COM thread (Windows); application code must not run there. An exception that leaves an upcall ends the JVM.
 - `Gcd.onMainAsync` runs all work through one upcall stub that is never freed. Do not free an upcall stub from inside its own invocation: the JVM crashes if a garbage collection walks the stack before the stub returns.
 
 ## Key Files
@@ -73,4 +74,4 @@ java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/na
 
 ## Testing
 
-No interactive dialog tests (a dialog needs a human to dismiss it). Automated tests cover OS detection, provider selection, FFM symbol resolution, string conversion, the blocking wait on the event dispatch thread, and (macOS) asynchronous main-thread dispatch under garbage collection, run in a forked JVM. Verify real dialog behaviour manually with the demo application (`NativeDialogsDemo`) on each platform.
+No interactive dialog tests (a dialog needs a human to dismiss it). Automated tests cover OS detection, provider selection, FFM symbol resolution, string conversion, the blocking wait on the event dispatch thread, listener delivery for asynchronous dialogs, and (macOS) asynchronous main-thread dispatch under garbage collection, run in a forked JVM. Verify real dialog behaviour manually with the demo application (`NativeDialogsDemo`) on each platform.
