@@ -56,7 +56,13 @@ public class NativeDialogs {
 	
 	public final static String FORCE_SWING_PROP = NativeDialogs.class.getName() + ".forceSwing";
 
-	private static NativeDialogProvider provider() {
+	/**
+	 * The native backend, or <code>null</code> to use Swing. Setting the system
+	 * property {@link #FORCE_SWING_PROP} to <code>true</code> selects Swing for every
+	 * dialog, without initialising any native backend.
+	 */
+	static NativeDialogProvider provider() {
+		if(Boolean.getBoolean(FORCE_SWING_PROP)) return null;
 		return NativeDialogProviders.get();
 	}
 
