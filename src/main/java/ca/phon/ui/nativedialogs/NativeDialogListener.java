@@ -23,6 +23,9 @@ package ca.phon.ui.nativedialogs;
  * The method <CODE>nativeDialogEvent(NativeDialogEvent event)</CODE>
  * is called when a button on the dialog is pressed.
  * 
+ * The listener of an asynchronous dialog is called on the event dispatch
+ * thread, after the dialog has closed.
+ * 
  *
  */
 public interface NativeDialogListener {

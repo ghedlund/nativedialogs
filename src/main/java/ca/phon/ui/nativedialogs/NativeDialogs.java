@@ -17,7 +17,10 @@ package ca.phon.ui.nativedialogs;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.Font;
+import java.awt.SecondaryLoop;
+import java.awt.Toolkit;
 import java.awt.Window;
 import java.io.File;
 import java.util.ArrayList;
@@ -53,8 +56,52 @@ public class NativeDialogs {
 	
 	public final static String FORCE_SWING_PROP = NativeDialogs.class.getName() + ".forceSwing";
 
-	private static NativeDialogProvider provider() {
+	/**
+	 * The native backend, or <code>null</code> to use Swing. Setting the system
+	 * property {@link #FORCE_SWING_PROP} to <code>true</code> selects Swing for every
+	 * dialog, without initialising any native backend.
+	 */
+	static NativeDialogProvider provider() {
+		if(Boolean.getBoolean(FORCE_SWING_PROP)) return null;
 		return NativeDialogProviders.get();
+	}
+
+	/**
+	 * Installs the listener a dialog reports its result to. A blocking request gets
+	 * a listener the caller waits on. An asynchronous request keeps its own listener,
+	 * called on the event dispatch thread.
+	 */
+	static void prepareListener(NativeDialogProperties properties) {
+		if(!properties.isRunAsync()) {
+			properties.setListener(new MessageWaitListener());
+		} else if(!(properties.getListener() instanceof EventThreadListener)) {
+			properties.setListener(new EventThreadListener(properties.getListener()));
+		}
+	}
+
+	/**
+	 * Calls a listener on the event dispatch thread.
+	 *
+	 * <p>A dialog reports its result on the thread that ran it: on macOS a native
+	 * callback on the AppKit thread, on Windows a COM thread. Application listeners
+	 * must not run there. They update the user interface, and an exception that
+	 * leaves a native callback ends the JVM.
+	 */
+	private static class EventThreadListener implements NativeDialogListener {
+		private final NativeDialogListener listener;
+
+		EventThreadListener(NativeDialogListener listener) {
+			this.listener = listener;
+		}
+
+		@Override
+		public void nativeDialogEvent(NativeDialogEvent evt) {
+			if(EventQueue.isDispatchThread()) {
+				listener.nativeDialogEvent(evt);
+			} else {
+				EventQueue.invokeLater(() -> listener.nativeDialogEvent(evt));
+			}
+		}
 	}
 
 	/**
@@ -182,10 +229,7 @@ public class NativeDialogs {
 	 */
 	public static List<String> showOpenDialog(OpenDialogProperties properties) {
 		List<String> retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsOpen() && !properties.isForceUseSwing()) {
 			try {
@@ -513,10 +557,7 @@ public class NativeDialogs {
 	 */
 	public static String showSaveDialog(SaveDialogProperties properties) {
 		String retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsSave() && !properties.isForceUseSwing()) {
 			try {
@@ -731,10 +772,7 @@ public class NativeDialogs {
 	 */
 	public static Integer showMessageDialog(MessageDialogProperties properties) {
 		Integer retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsMessage() && !properties.isForceUseSwing()) {
 			try {
@@ -845,10 +883,7 @@ public class NativeDialogs {
 	 */
 	public static Font showFontDialog(FontDialogProperties properties) {
 		Font retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsFont() && !properties.isForceUseSwing()) {
 			try {
@@ -925,10 +960,7 @@ public class NativeDialogs {
 	 */
 	public static Color showColorDialog(ColorDialogProperties properties) {
 		Color retVal = null;
-		if(!properties.isRunAsync()) {
-			final MessageWaitListener mwl = new MessageWaitListener();
-			properties.setListener(mwl);
-		}
+		prepareListener(properties);
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsColor() && !properties.isForceUseSwing()) {
 			try {
@@ -1288,24 +1320,40 @@ public class NativeDialogs {
 	
 	/**
 	 * Simple listener to wait for a native message dialog to close.
+	 *
+	 * <p>Must be created on the thread that calls {@link #waitLoop()}. On the
+	 * event dispatch thread the wait keeps dispatching events: a native dialog
+	 * can need that thread before it finishes (on macOS, accessibility queries
+	 * and input method callbacks are answered there), and a plain wait would
+	 * leave both sides waiting for each other.
 	 */
-	private static class MessageWaitListener implements NativeDialogListener {
+	static class MessageWaitListener implements NativeDialogListener {
 		private volatile boolean finished = false;
 		private volatile NativeDialogEvent event = null;
+		private final SecondaryLoop eventLoop = EventQueue.isDispatchThread()
+				? Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop()
+				: null;
 
 		@Override
-		public synchronized void nativeDialogEvent(NativeDialogEvent evt) {
-			event = evt;
-			finished = true;
-			notifyAll();
+		public void nativeDialogEvent(NativeDialogEvent evt) {
+			synchronized (this) {
+				event = evt;
+				finished = true;
+				notifyAll();
+			}
+			if (eventLoop != null) eventLoop.exit();
 		}
 
-		public synchronized void waitLoop() {
-			while (!finished) {
-				try {
-					wait();
-				} catch (InterruptedException e) {
-					LOGGER.log(Level.SEVERE, e.getMessage(), e);
+		public void waitLoop() {
+			// enter() returns at once if the result was already delivered
+			if (eventLoop != null && !finished) eventLoop.enter();
+			synchronized (this) {
+				while (!finished) {
+					try {
+						wait();
+					} catch (InterruptedException e) {
+						LOGGER.log(Level.SEVERE, e.getMessage(), e);
+					}
 				}
 			}
 		}

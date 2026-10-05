@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "ca.phon"
-version = (findProperty("version") as String?)?.takeIf { it != "unspecified" } ?: "24"
+version = (findProperty("version") as String?)?.takeIf { it != "unspecified" } ?: "25"
 description = "Native dialogs for Java with fallback to Swing."
 
 java {
