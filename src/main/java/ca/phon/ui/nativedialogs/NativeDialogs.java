@@ -17,7 +17,10 @@ package ca.phon.ui.nativedialogs;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.Font;
+import java.awt.SecondaryLoop;
+import java.awt.Toolkit;
 import java.awt.Window;
 import java.io.File;
 import java.util.ArrayList;
@@ -1288,24 +1291,40 @@ public class NativeDialogs {
 	
 	/**
 	 * Simple listener to wait for a native message dialog to close.
+	 *
+	 * <p>Must be created on the thread that calls {@link #waitLoop()}. On the
+	 * event dispatch thread the wait keeps dispatching events: a native dialog
+	 * can need that thread before it finishes (on macOS, accessibility queries
+	 * and input method callbacks are answered there), and a plain wait would
+	 * leave both sides waiting for each other.
 	 */
-	private static class MessageWaitListener implements NativeDialogListener {
+	static class MessageWaitListener implements NativeDialogListener {
 		private volatile boolean finished = false;
 		private volatile NativeDialogEvent event = null;
+		private final SecondaryLoop eventLoop = EventQueue.isDispatchThread()
+				? Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop()
+				: null;
 
 		@Override
-		public synchronized void nativeDialogEvent(NativeDialogEvent evt) {
-			event = evt;
-			finished = true;
-			notifyAll();
+		public void nativeDialogEvent(NativeDialogEvent evt) {
+			synchronized (this) {
+				event = evt;
+				finished = true;
+				notifyAll();
+			}
+			if (eventLoop != null) eventLoop.exit();
 		}
 
-		public synchronized void waitLoop() {
-			while (!finished) {
-				try {
-					wait();
-				} catch (InterruptedException e) {
-					LOGGER.log(Level.SEVERE, e.getMessage(), e);
+		public void waitLoop() {
+			// enter() returns at once if the result was already delivered
+			if (eventLoop != null && !finished) eventLoop.enter();
+			synchronized (this) {
+				while (!finished) {
+					try {
+						wait();
+					} catch (InterruptedException e) {
+						LOGGER.log(Level.SEVERE, e.getMessage(), e);
+					}
 				}
 			}
 		}

@@ -1,5 +1,6 @@
 package ca.phon.ui.nativedialogs.spi;
 
+import java.awt.EventQueue;
 import java.lang.foreign.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,8 +35,22 @@ final class MacDialogProvider implements NativeDialogProvider {
 
     @Override
     public void showOpen(OpenDialogProperties props) {
-        Runnable work = () -> runOpen(props);
-        if (props.isRunAsync()) Gcd.onMainAsync(work); else Gcd.onMainSync(work);
+        runOnAppKit(props, () -> runOpen(props));
+    }
+
+    private static void runOnAppKit(NativeDialogProperties props, Runnable work) {
+        if (callerWaitsForAppKit(props)) Gcd.onMainSync(work); else Gcd.onMainAsync(work);
+    }
+
+    /**
+     * The event dispatch thread must never wait here. AppKit answers accessibility
+     * queries and input method callbacks by waiting on the event dispatch thread, in
+     * a run loop mode that does not service the GCD main queue; if both threads wait,
+     * the dialog never opens. The facade keeps dispatching events until the result
+     * arrives instead.
+     */
+    static boolean callerWaitsForAppKit(NativeDialogProperties props) {
+        return !props.isRunAsync() && !EventQueue.isDispatchThread();
     }
 
     private void runOpen(OpenDialogProperties props) {
@@ -76,8 +91,7 @@ final class MacDialogProvider implements NativeDialogProvider {
 
     @Override
     public void showSave(SaveDialogProperties props) {
-        Runnable work = () -> runSave(props);
-        if (props.isRunAsync()) Gcd.onMainAsync(work); else Gcd.onMainSync(work);
+        runOnAppKit(props, () -> runSave(props));
     }
 
     private void runSave(SaveDialogProperties props) {
@@ -119,8 +133,7 @@ final class MacDialogProvider implements NativeDialogProvider {
 
     @Override
     public void showMessage(MessageDialogProperties props) {
-        Runnable work = () -> runMessage(props);
-        if (props.isRunAsync()) Gcd.onMainAsync(work); else Gcd.onMainSync(work);
+        runOnAppKit(props, () -> runMessage(props));
     }
 
     private void runMessage(MessageDialogProperties props) {
