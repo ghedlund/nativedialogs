@@ -776,7 +776,7 @@ public class NativeDialogs {
 		final NativeDialogProvider p = provider();
 		if (p != null && p.supportsMessage() && !properties.isForceUseSwing()) {
 			try {
-				p.showMessage(properties);
+				p.showMessage(properties, () -> swingShowMessageDialog(properties));
 			} catch (Throwable t) {
 				LOGGER.log(Level.SEVERE, "Native message dialog failed; falling back to Swing", t);
 				swingShowMessageDialog(properties);

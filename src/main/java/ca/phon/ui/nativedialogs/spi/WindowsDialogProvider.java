@@ -3,6 +3,8 @@ package ca.phon.ui.nativedialogs.spi;
 import java.lang.foreign.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import ca.phon.ui.nativedialogs.*;
 import ca.phon.ui.nativedialogs.ffm.win.*;
@@ -20,9 +22,24 @@ final class WindowsDialogProvider implements NativeDialogProvider {
     private static final int SI_GET_DISPLAY_NAME = 5;
     private static final int SIA_GET_COUNT = 7, SIA_GET_ITEM_AT = 8;
 
+    private static final Logger LOGGER = Logger.getLogger(WindowsDialogProvider.class.getName());
+
+    /** Shows a task dialog; returns the chosen button index, or -1 if dismissed. */
+    @FunctionalInterface
+    interface MessageShower {
+        int show(String title, String header, String content, List<String> buttons);
+    }
+
+    private final MessageShower messageShower;
+
     WindowsDialogProvider() {
+        this(ca.phon.ui.nativedialogs.ffm.win.TaskDialog::show);
+    }
+
+    WindowsDialogProvider(MessageShower messageShower) {
         // fail fast if the Win32 libraries are unavailable (forces Win32 class init)
         Win32.CoUninitialize.toString();
+        this.messageShower = messageShower;
     }
 
     @Override public boolean supportsOpen() { return true; }
@@ -210,13 +227,20 @@ final class WindowsDialogProvider implements NativeDialogProvider {
     }
 
     @Override
-    public void showMessage(MessageDialogProperties props) {
+    public void showMessage(MessageDialogProperties props, Runnable fallback) {
         Runnable work = () -> {
             String[] opts = props.getOptions();
             List<String> buttons = (opts == null || opts.length == 0)
                 ? List.of("Ok") : List.of(opts);
-            int idx = ca.phon.ui.nativedialogs.ffm.win.TaskDialog.show(
-                props.getTitle(), props.getHeader(), props.getMessage(), buttons);
+            final int idx;
+            try {
+                idx = messageShower.show(props.getTitle(), props.getHeader(), props.getMessage(), buttons);
+            } catch (RuntimeException e) {
+                // on the COM thread of an asynchronous dialog nobody else would see this failure
+                LOGGER.log(Level.SEVERE, "Native message dialog failed; falling back to Swing", e);
+                fallback.run();
+                return;
+            }
             int resultCode = (idx >= 0) ? idx : NativeDialogEvent.CANCEL_OPTION;
             props.getListener().nativeDialogEvent(new NativeDialogEvent(resultCode, null));
         };

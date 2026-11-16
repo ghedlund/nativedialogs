@@ -132,7 +132,7 @@ final class MacDialogProvider implements NativeDialogProvider {
     }
 
     @Override
-    public void showMessage(MessageDialogProperties props) {
+    public void showMessage(MessageDialogProperties props, Runnable fallback) {
         runOnAppKit(props, () -> runMessage(props));
     }
 

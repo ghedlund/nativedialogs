@@ -23,7 +23,11 @@ public interface NativeDialogProvider {
 
     void showOpen(OpenDialogProperties props);
     void showSave(SaveDialogProperties props);
-    void showMessage(MessageDialogProperties props);
+    /**
+     * @param fallback shows the dialog with Swing; called if the native dialog cannot be shown,
+     *     including when that failure happens on a background thread
+     */
+    void showMessage(MessageDialogProperties props, Runnable fallback);
     void showFont(FontDialogProperties props);
     void showColor(ColorDialogProperties props);
 }
