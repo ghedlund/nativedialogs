@@ -12,46 +12,46 @@ import static java.lang.foreign.ValueLayout.*;
  * Returns the 0-based index of the chosen custom button, or -1 if dismissed.
  *
  * <p>Struct layouts are declared with {@link MemoryLayout} so field offsets and
- * the overall size are computed by FFM (x64 ABI), avoiding hand-counted offsets.
- * TASKDIALOGCONFIG is 176 bytes on x64.
+ * the overall size are computed by FFM, avoiding hand-counted offsets. commctrl.h
+ * declares both structs with 1-byte packing ({@code pshpack1.h}), so the layouts
+ * have no padding and use unaligned members: TASKDIALOGCONFIG is 160 bytes on x64
+ * and TASKDIALOG_BUTTON is 12. Windows rejects any other size with E_INVALIDARG.
  */
 public final class TaskDialog {
 
-    // TASKDIALOG_BUTTON { int nButtonID; PCWSTR pszButtonText; } — 16 bytes on x64.
-    private static final MemoryLayout BUTTON = MemoryLayout.structLayout(
-        JAVA_INT.withName("nButtonID"),
-        MemoryLayout.paddingLayout(4),
-        ADDRESS.withName("pszButtonText"));
+    private static final ValueLayout.OfInt INT = JAVA_INT_UNALIGNED;
+    private static final AddressLayout PTR = ADDRESS_UNALIGNED;
 
-    private static final MemoryLayout TDC = MemoryLayout.structLayout(
-        JAVA_INT.withName("cbSize"),
-        MemoryLayout.paddingLayout(4),
-        ADDRESS.withName("hwndParent"),
-        ADDRESS.withName("hInstance"),
-        JAVA_INT.withName("dwFlags"),
-        JAVA_INT.withName("dwCommonButtons"),
-        ADDRESS.withName("pszWindowTitle"),
-        ADDRESS.withName("pszMainIcon"),
-        ADDRESS.withName("pszMainInstruction"),
-        ADDRESS.withName("pszContent"),
-        JAVA_INT.withName("cButtons"),
-        MemoryLayout.paddingLayout(4),
-        ADDRESS.withName("pButtons"),
-        JAVA_INT.withName("nDefaultButton"),
-        JAVA_INT.withName("cRadioButtons"),
-        ADDRESS.withName("pRadioButtons"),
-        JAVA_INT.withName("nDefaultRadioButton"),
-        MemoryLayout.paddingLayout(4),
-        ADDRESS.withName("pszVerificationText"),
-        ADDRESS.withName("pszExpandedInformation"),
-        ADDRESS.withName("pszExpandedControlText"),
-        ADDRESS.withName("pszCollapsedControlText"),
-        ADDRESS.withName("hFooterIcon"),
-        ADDRESS.withName("pszFooter"),
-        ADDRESS.withName("pfCallback"),
-        ADDRESS.withName("lpCallbackData"),
-        JAVA_INT.withName("cxWidth"),
-        MemoryLayout.paddingLayout(4));
+    // TASKDIALOG_BUTTON { int nButtonID; PCWSTR pszButtonText; }
+    static final MemoryLayout BUTTON = MemoryLayout.structLayout(
+        INT.withName("nButtonID"),
+        PTR.withName("pszButtonText"));
+
+    static final MemoryLayout TDC = MemoryLayout.structLayout(
+        INT.withName("cbSize"),
+        PTR.withName("hwndParent"),
+        PTR.withName("hInstance"),
+        INT.withName("dwFlags"),
+        INT.withName("dwCommonButtons"),
+        PTR.withName("pszWindowTitle"),
+        PTR.withName("pszMainIcon"),
+        PTR.withName("pszMainInstruction"),
+        PTR.withName("pszContent"),
+        INT.withName("cButtons"),
+        PTR.withName("pButtons"),
+        INT.withName("nDefaultButton"),
+        INT.withName("cRadioButtons"),
+        PTR.withName("pRadioButtons"),
+        INT.withName("nDefaultRadioButton"),
+        PTR.withName("pszVerificationText"),
+        PTR.withName("pszExpandedInformation"),
+        PTR.withName("pszExpandedControlText"),
+        PTR.withName("pszCollapsedControlText"),
+        PTR.withName("hFooterIcon"),
+        PTR.withName("pszFooter"),
+        PTR.withName("pfCallback"),
+        PTR.withName("lpCallbackData"),
+        INT.withName("cxWidth"));
 
     private static long off(String name) {
         return TDC.byteOffset(PathElement.groupElement(name));
@@ -71,33 +71,43 @@ public final class TaskDialog {
 
     /**
      * @return index into {@code buttons} of the chosen button, or -1 if cancelled.
+     * @throws IllegalStateException if Windows cannot show the dialog
      */
     public static int show(String title, String header, String content, List<String> buttons) {
+        return show(title, header, content, buttons, MemorySegment.NULL);
+    }
+
+    static int show(String title, String header, String content, List<String> buttons, MemorySegment callback) {
         try (Arena a = Arena.ofConfined()) {
             MemorySegment cfg = a.allocate(TDC);
-            cfg.set(JAVA_INT, off("cbSize"), (int) TDC.byteSize());
-            cfg.set(JAVA_INT, off("dwFlags"), TDF_ALLOW_DIALOG_CANCELLATION);
-            if (title != null) cfg.set(ADDRESS, off("pszWindowTitle"), WinStr.wide(a, title));
-            if (header != null) cfg.set(ADDRESS, off("pszMainInstruction"), WinStr.wide(a, header));
-            if (content != null) cfg.set(ADDRESS, off("pszContent"), WinStr.wide(a, content));
+            cfg.set(INT, off("cbSize"), (int) TDC.byteSize());
+            cfg.set(INT, off("dwFlags"), TDF_ALLOW_DIALOG_CANCELLATION);
+            if (title != null) cfg.set(PTR, off("pszWindowTitle"), WinStr.wide(a, title));
+            if (header != null) cfg.set(PTR, off("pszMainInstruction"), WinStr.wide(a, header));
+            if (content != null) cfg.set(PTR, off("pszContent"), WinStr.wide(a, content));
 
             MemorySegment btnArray = a.allocate(BUTTON, buttons.size());
             for (int i = 0; i < buttons.size(); i++) {
                 long base = i * BUTTON.byteSize();
-                btnArray.set(JAVA_INT, base + btnOff("nButtonID"), FIRST_ID + i);
-                btnArray.set(ADDRESS, base + btnOff("pszButtonText"), WinStr.wide(a, buttons.get(i)));
+                btnArray.set(INT, base + btnOff("nButtonID"), FIRST_ID + i);
+                btnArray.set(PTR, base + btnOff("pszButtonText"), WinStr.wide(a, buttons.get(i)));
             }
-            cfg.set(JAVA_INT, off("cButtons"), buttons.size());
-            cfg.set(ADDRESS, off("pButtons"), btnArray);
-            cfg.set(JAVA_INT, off("nDefaultButton"), FIRST_ID);
+            cfg.set(INT, off("cButtons"), buttons.size());
+            cfg.set(PTR, off("pButtons"), btnArray);
+            cfg.set(INT, off("nDefaultButton"), FIRST_ID);
+            cfg.set(PTR, off("pfCallback"), callback);
 
             MemorySegment pressed = a.allocate(JAVA_INT);
             int hr = (int) TASK_DIALOG_INDIRECT.invokeExact(
                 cfg, pressed, MemorySegment.NULL, MemorySegment.NULL);
-            if (hr != Win32.S_OK) return -1;
+            if (hr != Win32.S_OK) {
+                throw new IllegalStateException(String.format("TaskDialogIndirect failed: hr=0x%08X", hr));
+            }
             int id = pressed.get(JAVA_INT, 0);
             int idx = id - FIRST_ID;
             return (idx >= 0 && idx < buttons.size()) ? idx : -1;
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
