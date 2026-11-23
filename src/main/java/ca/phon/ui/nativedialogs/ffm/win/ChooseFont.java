@@ -59,6 +59,14 @@ public final class ChooseFont {
 
     /** @return the chosen Font, or null if cancelled. */
     public static Font show(Font initial) {
+        return show(initial, MemorySegment.NULL);
+    }
+
+    /**
+     * @param owner HWND of the owner window, or {@code NULL} for none
+     * @return the chosen Font, or null if cancelled.
+     */
+    public static Font show(Font initial, MemorySegment owner) {
         try (Arena a = Arena.ofConfined()) {
             MemorySegment lf = a.allocate(LOGFONT_SIZE);
             int pt = (initial != null) ? initial.getSize() : 12;
@@ -71,6 +79,7 @@ public final class ChooseFont {
 
             MemorySegment cf = a.allocate(CF);
             cf.set(JAVA_INT, off("lStructSize"), (int) CF.byteSize());
+            cf.set(ADDRESS, off("hwndOwner"), owner);
             cf.set(ADDRESS, off("lpLogFont"), lf);
             cf.set(JAVA_INT, off("Flags"), CF_SCREENFONTS | CF_INITTOLOGFONTSTRUCT);
 

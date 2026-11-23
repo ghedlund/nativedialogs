@@ -41,10 +41,19 @@ public final class ChooseColor {
 
     /** @return 0xRRGGBB chosen colour, or -1 if cancelled. */
     public static int show(int initialRgb) {
+        return show(initialRgb, MemorySegment.NULL);
+    }
+
+    /**
+     * @param owner HWND of the owner window, or {@code NULL} for none
+     * @return 0xRRGGBB chosen colour, or -1 if cancelled.
+     */
+    public static int show(int initialRgb, MemorySegment owner) {
         try (Arena a = Arena.ofConfined()) {
             MemorySegment custom = a.allocate(JAVA_INT.byteSize() * 16); // 16 custom slots; must be non-null
             MemorySegment cc = a.allocate(CC);
             cc.set(JAVA_INT, off("lStructSize"), (int) CC.byteSize());
+            cc.set(ADDRESS, off("hwndOwner"), owner);
             cc.set(JAVA_INT, off("rgbResult"), toColorRef(initialRgb)); // COLORREF is 0x00BBGGRR
             cc.set(ADDRESS, off("lpCustColors"), custom);
             cc.set(JAVA_INT, off("Flags"), CC_RGBINIT | CC_FULLOPEN);

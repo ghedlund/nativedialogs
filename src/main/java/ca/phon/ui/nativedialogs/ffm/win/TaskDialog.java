@@ -61,6 +61,7 @@ public final class TaskDialog {
     }
 
     private static final int TDF_ALLOW_DIALOG_CANCELLATION = 0x0008;
+    private static final int TDF_POSITION_RELATIVE_TO_WINDOW = 0x1000;
     private static final int FIRST_ID = 1000;
 
     private static final MethodHandle TASK_DIALOG_INDIRECT = Linker.nativeLinker().downcallHandle(
@@ -70,6 +71,8 @@ public final class TaskDialog {
     private TaskDialog() {}
 
     /**
+     * Shows the dialog with no owner window.
+     *
      * @return index into {@code buttons} of the chosen button, or -1 if cancelled.
      * @throws IllegalStateException if Windows cannot show the dialog
      */
@@ -77,25 +80,50 @@ public final class TaskDialog {
         return show(title, header, content, buttons, MemorySegment.NULL);
     }
 
-    static int show(String title, String header, String content, List<String> buttons, MemorySegment callback) {
-        try (Arena a = Arena.ofConfined()) {
-            MemorySegment cfg = a.allocate(TDC);
-            cfg.set(INT, off("cbSize"), (int) TDC.byteSize());
-            cfg.set(INT, off("dwFlags"), TDF_ALLOW_DIALOG_CANCELLATION);
-            if (title != null) cfg.set(PTR, off("pszWindowTitle"), WinStr.wide(a, title));
-            if (header != null) cfg.set(PTR, off("pszMainInstruction"), WinStr.wide(a, header));
-            if (content != null) cfg.set(PTR, off("pszContent"), WinStr.wide(a, content));
+    /**
+     * Shows the dialog owned by {@code owner}: centred over it and modal to it.
+     *
+     * @param owner HWND of the owner window, or {@code NULL} for none
+     * @return index into {@code buttons} of the chosen button, or -1 if cancelled.
+     * @throws IllegalStateException if Windows cannot show the dialog
+     */
+    public static int show(String title, String header, String content, List<String> buttons, MemorySegment owner) {
+        return show(title, header, content, buttons, owner, MemorySegment.NULL);
+    }
 
-            MemorySegment btnArray = a.allocate(BUTTON, buttons.size());
-            for (int i = 0; i < buttons.size(); i++) {
-                long base = i * BUTTON.byteSize();
-                btnArray.set(INT, base + btnOff("nButtonID"), FIRST_ID + i);
-                btnArray.set(PTR, base + btnOff("pszButtonText"), WinStr.wide(a, buttons.get(i)));
-            }
-            cfg.set(INT, off("cButtons"), buttons.size());
-            cfg.set(PTR, off("pButtons"), btnArray);
-            cfg.set(INT, off("nDefaultButton"), FIRST_ID);
-            cfg.set(PTR, off("pfCallback"), callback);
+    /** Fills a TASKDIALOGCONFIG; strings and buttons are allocated in {@code a}. */
+    static MemorySegment config(Arena a, String title, String header, String content, List<String> buttons,
+                                MemorySegment owner, MemorySegment callback) {
+        MemorySegment cfg = a.allocate(TDC);
+        cfg.set(INT, off("cbSize"), (int) TDC.byteSize());
+        int flags = TDF_ALLOW_DIALOG_CANCELLATION;
+        if (owner.address() != 0L) {
+            cfg.set(PTR, off("hwndParent"), owner);
+            // without this flag Windows centres the dialog on the monitor, not the owner
+            flags |= TDF_POSITION_RELATIVE_TO_WINDOW;
+        }
+        cfg.set(INT, off("dwFlags"), flags);
+        if (title != null) cfg.set(PTR, off("pszWindowTitle"), WinStr.wide(a, title));
+        if (header != null) cfg.set(PTR, off("pszMainInstruction"), WinStr.wide(a, header));
+        if (content != null) cfg.set(PTR, off("pszContent"), WinStr.wide(a, content));
+
+        MemorySegment btnArray = a.allocate(BUTTON, buttons.size());
+        for (int i = 0; i < buttons.size(); i++) {
+            long base = i * BUTTON.byteSize();
+            btnArray.set(INT, base + btnOff("nButtonID"), FIRST_ID + i);
+            btnArray.set(PTR, base + btnOff("pszButtonText"), WinStr.wide(a, buttons.get(i)));
+        }
+        cfg.set(INT, off("cButtons"), buttons.size());
+        cfg.set(PTR, off("pButtons"), btnArray);
+        cfg.set(INT, off("nDefaultButton"), FIRST_ID);
+        cfg.set(PTR, off("pfCallback"), callback);
+        return cfg;
+    }
+
+    static int show(String title, String header, String content, List<String> buttons,
+                    MemorySegment owner, MemorySegment callback) {
+        try (Arena a = Arena.ofConfined()) {
+            MemorySegment cfg = config(a, title, header, content, buttons, owner, callback);
 
             MemorySegment pressed = a.allocate(JAVA_INT);
             int hr = (int) TASK_DIALOG_INDIRECT.invokeExact(
