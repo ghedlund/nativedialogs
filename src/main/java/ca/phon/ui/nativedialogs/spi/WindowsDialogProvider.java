@@ -24,22 +24,48 @@ final class WindowsDialogProvider implements NativeDialogProvider {
 
     private static final Logger LOGGER = Logger.getLogger(WindowsDialogProvider.class.getName());
 
-    /** Shows a task dialog; returns the chosen button index, or -1 if dismissed. */
+    /** Shows a task dialog owned by {@code owner} (may be NULL); returns the chosen button index, or -1 if dismissed. */
     @FunctionalInterface
     interface MessageShower {
-        int show(String title, String header, String content, List<String> buttons);
+        int show(String title, String header, String content, List<String> buttons, MemorySegment owner);
+    }
+
+    /** Finds the HWND that should own a dialog, or 0 for none. */
+    @FunctionalInterface
+    interface OwnerFinder {
+        long ownerFor(java.awt.Window parent);
     }
 
     private final MessageShower messageShower;
+    private final OwnerFinder ownerFinder;
 
     WindowsDialogProvider() {
-        this(ca.phon.ui.nativedialogs.ffm.win.TaskDialog::show);
+        this(ca.phon.ui.nativedialogs.ffm.win.TaskDialog::show, OwnerWindow::ownerFor);
     }
 
     WindowsDialogProvider(MessageShower messageShower) {
+        this(messageShower, OwnerWindow::ownerFor);
+    }
+
+    WindowsDialogProvider(MessageShower messageShower, OwnerFinder ownerFinder) {
         // fail fast if the Win32 libraries are unavailable (forces Win32 class init)
         Win32.CoUninitialize.toString();
         this.messageShower = messageShower;
+        this.ownerFinder = ownerFinder;
+    }
+
+    /**
+     * The HWND of the window that should own the dialog, found on the calling thread
+     * (usually the event dispatch thread) before the dialog moves to its COM thread.
+     * Never throws: without a handle the dialog has no owner, as before.
+     */
+    private long ownerOf(NativeDialogProperties props) {
+        try {
+            return ownerFinder.ownerFor(props.getParentWindow());
+        } catch (RuntimeException | LinkageError e) {
+            LOGGER.log(Level.FINE, "Could not find the dialog owner", e);
+            return 0L;
+        }
     }
 
     @Override public boolean supportsOpen() { return true; }
@@ -50,12 +76,14 @@ final class WindowsDialogProvider implements NativeDialogProvider {
 
     @Override
     public void showOpen(OpenDialogProperties props) {
-        runOnComThread(props.isRunAsync(), () -> runFileDialog(props, true));
+        long owner = ownerOf(props);
+        runOnComThread(props.isRunAsync(), () -> runFileDialog(props, true, owner));
     }
 
     @Override
     public void showSave(SaveDialogProperties props) {
-        runOnComThread(props.isRunAsync(), () -> runFileDialog(props, false));
+        long owner = ownerOf(props);
+        runOnComThread(props.isRunAsync(), () -> runFileDialog(props, false, owner));
     }
 
     private void runOnComThread(boolean async, Runnable work) {
@@ -80,7 +108,7 @@ final class WindowsDialogProvider implements NativeDialogProvider {
         }
     }
 
-    private void runFileDialog(NativeDialogProperties props, boolean open) {
+    private void runFileDialog(NativeDialogProperties props, boolean open, long owner) {
         try (Arena a = Arena.ofConfined()) {
             MemorySegment ppv = a.allocate(ADDRESS);
             MemorySegment clsid = open ? CLSID_FileOpenDialog(a) : CLSID_FileSaveDialog(a);
@@ -93,7 +121,7 @@ final class WindowsDialogProvider implements NativeDialogProvider {
 
             try {
                 applyFileOptions(a, dlg, props, open);
-                int showHr = Com.callHr(dlg, SHOW, MemorySegment.NULL);
+                int showHr = Com.callHr(dlg, SHOW, OwnerWindow.validOrNull(owner));
                 if (showHr != S_OK) { deliverCancel(props); return; }
 
                 if (open && isMulti(props)) {
@@ -228,13 +256,15 @@ final class WindowsDialogProvider implements NativeDialogProvider {
 
     @Override
     public void showMessage(MessageDialogProperties props, Runnable fallback) {
+        long owner = ownerOf(props);
         Runnable work = () -> {
             String[] opts = props.getOptions();
             List<String> buttons = (opts == null || opts.length == 0)
                 ? List.of("Ok") : List.of(opts);
             final int idx;
             try {
-                idx = messageShower.show(props.getTitle(), props.getHeader(), props.getMessage(), buttons);
+                idx = messageShower.show(props.getTitle(), props.getHeader(), props.getMessage(), buttons,
+                    OwnerWindow.validOrNull(owner));
             } catch (RuntimeException e) {
                 // on the COM thread of an asynchronous dialog nobody else would see this failure
                 LOGGER.log(Level.SEVERE, "Native message dialog failed; falling back to Swing", e);
@@ -248,9 +278,10 @@ final class WindowsDialogProvider implements NativeDialogProvider {
     }
     @Override
     public void showFont(FontDialogProperties props) {
+        long owner = ownerOf(props);
         Runnable work = () -> {
             java.awt.Font initial = props.createFont();
-            java.awt.Font chosen = ca.phon.ui.nativedialogs.ffm.win.ChooseFont.show(initial);
+            java.awt.Font chosen = ca.phon.ui.nativedialogs.ffm.win.ChooseFont.show(initial, OwnerWindow.validOrNull(owner));
             if (chosen == null) {
                 props.getListener().nativeDialogEvent(new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null));
             } else {
@@ -262,10 +293,11 @@ final class WindowsDialogProvider implements NativeDialogProvider {
 
     @Override
     public void showColor(ColorDialogProperties props) {
+        long owner = ownerOf(props);
         Runnable work = () -> {
             java.awt.Color start = props.getColor();
             int initial = (start != null) ? (start.getRGB() & 0xFFFFFF) : 0xFFFFFF;
-            int rgb = ca.phon.ui.nativedialogs.ffm.win.ChooseColor.show(initial);
+            int rgb = ca.phon.ui.nativedialogs.ffm.win.ChooseColor.show(initial, OwnerWindow.validOrNull(owner));
             if (rgb < 0) {
                 props.getListener().nativeDialogEvent(new NativeDialogEvent(NativeDialogEvent.CANCEL_OPTION, null));
             } else {

@@ -50,6 +50,7 @@ java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/na
 **Native implementation (pure-Java FFM, internal `ca.phon.ui.nativedialogs.ffm.*`):**
 - macOS (`ffm.mac`, `MacDialogProvider`): Cocoa via `objc_msgSend` (libobjc) — `NSOpenPanel`/`NSSavePanel`/`NSAlert`, app-modal, run on the AppKit main thread via GCD `dispatch_*_f`. Font/colour fall back to Swing.
 - Windows (`ffm.win`, `WindowsDialogProvider`): COM Common Item Dialog (`IFileOpenDialog`/`IFileSaveDialog`, invoked by vtable index), `TaskDialogIndirect`, `ChooseFontW`, `ChooseColorW`, on an STA thread.
+  Each dialog is owned by the properties' `parentWindow` (else the active window). `OwnerWindow` finds its `HWND` by listing this process's top-level AWT windows (`FindWindowExW` by `SunAwt*` class) and matching the title, then the bounds; JAWT is not usable from FFM (it needs a `JNIEnv*` and a JNI reference). The lookup runs on the calling thread and sends no window messages; no handle means no owner.
 - Linux/other: Swing.
 
 **Threading:** Dialogs support synchronous (blocking) and asynchronous modes via `NativeDialogListener`. Each provider delivers the result by calling `props.getListener().nativeDialogEvent(...)`.
@@ -74,4 +75,4 @@ java -Dca.phon.ui.nativedialogs.NativeDialogs.forceSwing=true -jar build/libs/na
 
 ## Testing
 
-No interactive dialog tests (a dialog needs a human to dismiss it). Automated tests cover OS detection, provider selection, FFM symbol resolution, string conversion, the blocking wait on the event dispatch thread, listener delivery for asynchronous dialogs, and (macOS) asynchronous main-thread dispatch under garbage collection, run in a forked JVM. Verify real dialog behaviour manually with the demo application (`NativeDialogsDemo`) on each platform.
+Few interactive dialog tests: on Windows, real task and open dialogs are shown and closed programmatically (task dialog callback, `WM_CLOSE`) to check results, ownership and position; they need a display. Other automated tests cover OS detection, provider selection, FFM symbol resolution, string conversion, the blocking wait on the event dispatch thread, listener delivery for asynchronous dialogs, and (macOS) asynchronous main-thread dispatch under garbage collection, run in a forked JVM. Verify real dialog behaviour manually with the demo application (`NativeDialogsDemo`) on each platform.

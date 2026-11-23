@@ -262,7 +262,7 @@ public class NativeDialogs {
 	/** 
 	 * Method for displaying the open file dialog.
 	 * 
-	 * @param parentWindow unsed in Win32 but essential for Cocoa
+	 * @param parentWindow owner of the dialog on Windows and in Swing (on Windows, null means the active window); macOS dialogs are app-modal
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting directory
 	 * @param defaultExt the default extension
@@ -297,7 +297,7 @@ public class NativeDialogs {
 	/**
 	 * Method for displaying the native open dir dialog.
 	 * 
-	 * @param parentWindows unused for Win32 but essential for Cocoa
+	 * @param parentWindows owner of the dialog on Windows and in Swing (on Windows, null means the active window); macOS dialogs are app-modal
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting Directory
 	 * @param title the title of the window
@@ -585,7 +585,7 @@ public class NativeDialogs {
 	/**
 	 * Method for displaying a save file dialog.
 	 * 
-	 * @param parentWindow unused for Win32 but essential for Cocoa
+	 * @param parentWindow owner of the dialog on Windows and in Swing (on Windows, null means the active window); macOS dialogs are app-modal
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting directory
 	 * @param title the title of the window
@@ -606,7 +606,7 @@ public class NativeDialogs {
 	/**
 	 * Method for displaying a save file dialog.
 	 * 
-	 * @param parentWindow unused for Win32 but essential for Cocoa
+	 * @param parentWindow owner of the dialog on Windows and in Swing (on Windows, null means the active window); macOS dialogs are app-modal
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting directory
 	 * @param title the title of the window
@@ -1041,7 +1041,7 @@ public class NativeDialogs {
 	/** 
 	 * Method for displaying the native open file dialog.
 	 * 
-	 * @param parentWindow unsed in Win32 but essential for Cocoa
+	 * @param parentWindow owner of the dialog on Windows and in Swing (on Windows, null means the active window); macOS dialogs are app-modal
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting directory
 	 * @param defaultExt the default extension
@@ -1081,7 +1081,7 @@ public class NativeDialogs {
 	/**
 	 * Method for displaying the native open dir dialog.
 	 * 
-	 * @param parentWindows unused for Win32 but essential for Cocoa
+	 * @param parentWindows owner of the dialog on Windows and in Swing (on Windows, null means the active window); macOS dialogs are app-modal
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting Directory
 	 * @param title the title of the window
@@ -1114,7 +1114,7 @@ public class NativeDialogs {
 	/**
 	 * Method for displaying a save file dialog.
 	 * 
-	 * @param parentWindow unused for Win32 but essential for Cocoa
+	 * @param parentWindow owner of the dialog on Windows and in Swing (on Windows, null means the active window); macOS dialogs are app-modal
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting directory
 	 * @param title the title of the window
@@ -1135,7 +1135,7 @@ public class NativeDialogs {
 	/**
 	 * Method for displaying a save file dialog.
 	 * 
-	 * @param parentWindow unused for Win32 but essential for Cocoa
+	 * @param parentWindow owner of the dialog on Windows and in Swing (on Windows, null means the active window); macOS dialogs are app-modal
 	 * @param listener the listener to call when an event occurs
 	 * @param startDir the starting directory
 	 * @param title the title of the window
